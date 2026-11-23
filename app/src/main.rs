@@ -3,6 +3,7 @@
 mod app;
 mod document;
 mod preview;
+mod recent;
 mod screens;
 
 use model::APP_NAME;
@@ -17,9 +18,10 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     // Optional first argument: a song sheet file to open.
-    let app = match std::env::args_os().nth(1) {
-        Some(path) => app::App::with_file(std::path::Path::new(&path)),
-        None => app::App::default(),
-    };
-    eframe::run_native(APP_NAME, options, Box::new(|_cc| Ok(Box::new(app))))
+    let file = std::env::args_os().nth(1).map(std::path::PathBuf::from);
+    eframe::run_native(
+        APP_NAME,
+        options,
+        Box::new(move |cc| Ok(Box::new(app::App::new(cc.storage, file.as_deref())))),
+    )
 }

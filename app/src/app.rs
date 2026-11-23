@@ -1,10 +1,13 @@
 //! Top-level app: file actions, the toolbar and screen layout.
 
+use std::path::{Path, PathBuf};
+
 use eframe::egui::{self, Key, KeyboardShortcut, Modifiers};
 use model::{PartFilter, StaffKind};
 
 use crate::document::{Document, dialogs};
 use crate::preview::Preview;
+use crate::recent::RecentFiles;
 use crate::screens;
 use crate::screens::widgets::{EDITOR_TITLE, SHEET_TITLE, confirm};
 
@@ -23,10 +26,13 @@ enum Screen {
 }
 
 /// File actions that may discard unsaved changes.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum Discarding {
     New,
+    /// Choose a file in a dialog.
     Open,
+    /// Open this file (from the recent list).
+    OpenPath(PathBuf),
     Quit,
 }
 
@@ -44,6 +50,7 @@ pub struct App {
     /// Set once the user agreed to quit; lets the next close request through.
     quitting: bool,
     window_title: String,
+    recent: RecentFiles,
 }
 
 impl Default for App {
@@ -59,24 +66,44 @@ impl Default for App {
             confirm: None,
             quitting: false,
             window_title: String::new(),
+            recent: RecentFiles::default(),
         }
     }
 }
 
 impl App {
-    /// Starts with `path` opened, or with an empty song and an error
-    /// message if it cannot be read.
-    pub fn with_file(path: &std::path::Path) -> Self {
-        let mut app = Self::default();
-        match Document::open(path) {
-            Ok(doc) => app.doc = doc,
-            Err(e) => app.status = e,
+    /// Starts with the remembered recent files and, if given, `path`
+    /// opened (or an error message if it cannot be read).
+    pub fn new(storage: Option<&dyn eframe::Storage>, path: Option<&Path>) -> Self {
+        let mut app = Self { recent: RecentFiles::load(storage), ..Self::default() };
+        if let Some(path) = path {
+            app.open_path(path);
         }
         app
+    }
+
+    fn open_path(&mut self, path: &Path) {
+        match Document::open(path) {
+            Ok(doc) => {
+                self.doc = doc;
+                self.editor = Default::default();
+                self.picker = Default::default();
+                self.recent.add(path);
+                self.status = format!("Opened {}", path.display());
+            }
+            Err(e) => {
+                self.recent.remove(path);
+                self.status = e;
+            }
+        }
     }
 }
 
 impl eframe::App for App {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        self.recent.save(storage);
+    }
+
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_shortcuts(ui.ctx());
         self.guard_close(ui.ctx());
@@ -112,11 +139,12 @@ impl App {
             if ui.button("Open…").on_hover_text(ui.ctx().format_shortcut(&OPEN)).clicked() {
                 self.request(ui.ctx(), Discarding::Open);
             }
+            self.recent_menu(ui);
             if ui.button("Save").on_hover_text(ui.ctx().format_shortcut(&SAVE)).clicked() {
-                self.save(false);
+                self.save_file(false);
             }
             if ui.button("Save as…").clicked() {
-                self.save(true);
+                self.save_file(true);
             }
             ui.separator();
             ui.selectable_value(&mut self.screen, Screen::Sheet, SHEET_TITLE);
@@ -150,6 +178,27 @@ impl App {
         self.preview.show(ui, &self.doc.project, self.filter);
     }
 
+    /// "Recent" menu with the last opened or saved files.
+    fn recent_menu(&mut self, ui: &mut egui::Ui) {
+        let mut chosen = None;
+        ui.add_enabled_ui(!self.recent.paths().is_empty(), |ui| {
+            ui.menu_button("Recent", |ui| {
+                for path in self.recent.paths() {
+                    let name = path
+                        .file_name()
+                        .map_or_else(|| path.to_string_lossy(), |n| n.to_string_lossy());
+                    if ui.button(name).on_hover_text(path.to_string_lossy()).clicked() {
+                        chosen = Some(path.clone());
+                        ui.close();
+                    }
+                }
+            });
+        });
+        if let Some(path) = chosen {
+            self.request(ui.ctx(), Discarding::OpenPath(path));
+        }
+    }
+
     fn handle_shortcuts(&mut self, ctx: &egui::Context) {
         let (new, open, save) = ctx.input_mut(|i| {
             (i.consume_shortcut(&NEW), i.consume_shortcut(&OPEN), i.consume_shortcut(&SAVE))
@@ -161,7 +210,7 @@ impl App {
             self.request(ctx, Discarding::Open);
         }
         if save {
-            self.save(false);
+            self.save_file(false);
         }
     }
 
@@ -199,24 +248,20 @@ impl App {
             Discarding::New => {
                 self.doc = Document::new();
                 self.editor = Default::default();
+                self.picker = Default::default();
                 self.status.clear();
             }
             Discarding::Open => {
-                let Some(path) = dialogs::open() else { return };
-                match Document::open(&path) {
-                    Ok(doc) => {
-                        self.doc = doc;
-                        self.editor = Default::default();
-                        self.status = format!("Opened {}", path.display());
-                    }
-                    Err(e) => self.status = e,
+                if let Some(path) = dialogs::open() {
+                    self.open_path(&path);
                 }
             }
+            Discarding::OpenPath(path) => self.open_path(&path),
         }
     }
 
     fn confirm_dialog(&mut self, ctx: &egui::Context) {
-        let Some(action) = self.confirm else { return };
+        let Some(action) = self.confirm.clone() else { return };
         let id = egui::Id::unique("confirm_discard");
         if let Some(discard) = confirm(ctx, id, "Discard unsaved changes?", "Discard") {
             self.confirm = None;
@@ -226,7 +271,7 @@ impl App {
         }
     }
 
-    fn save(&mut self, choose_path: bool) {
+    fn save_file(&mut self, choose_path: bool) {
         let path = match (&self.doc.path, choose_path) {
             (Some(p), false) => p.clone(),
             _ => match dialogs::save(&self.doc.file_stem()) {
@@ -235,7 +280,10 @@ impl App {
             },
         };
         self.status = match self.doc.save_to(&path) {
-            Ok(()) => format!("Saved {}", path.display()),
+            Ok(()) => {
+                self.recent.add(&path);
+                format!("Saved {}", path.display())
+            }
             Err(e) => e,
         };
     }

@@ -38,7 +38,7 @@ A Cargo workspace; dependency versions live in `[workspace.dependencies]`.
   - Chord symbols are collected by their position in the bar and attached to whichever staff of the part is kept. A part may have several staves; the tab staff wins.
 - `crates/raster`: draws a `Page` with `tiny-skia`. The app shows this image as its preview. Don't add a separate egui-native notation renderer.
 - `crates/pdf`: draws the `DisplayList` with `krilla`, via `draw_glyphs` and `glyph_run`, never `draw_text`.
-- `app/`: the `eframe`/`egui` binary. It has `document` (file I/O; saves via a temporary file and detects unsaved changes by comparing against the last saved `Project`), `preview` (rerasterizes when the project, filter or width differs from the last render), and `screens/`:
+- `app/`: the `eframe`/`egui` binary. It has `recent` (the recent-files list, kept in eframe's app storage), `document` (file I/O; saves via a temporary file and detects unsaved changes by comparing against the last saved `Project`), `preview` (rerasterizes when the project, filter or width differs from the last render), and `screens/`:
   - `song_panel`: song details and the section pool.
   - `arranger`: sheet rows with drag-to-reorder.
   - `picker/`: imports a score, chooses parts and a bar range (overview drawn in chunks of up to 8 bars, split at time-signature changes) and creates a section.
@@ -47,7 +47,7 @@ A Cargo workspace; dependency versions live in `[workspace.dependencies]`.
   - `widgets`: shared constants, icons and helpers.
 
   Keyboard scheme: a Guitar Pro-style beat cursor with MuseScore duration numbers (2–7). On guitar and bass staves, digits type frets.
-- Not built yet: Guitar Pro import (users can export MusicXML from Guitar Pro meanwhile).
+- Not built: native Guitar Pro import. The user deferred it, since exporting MusicXML from Guitar Pro works. It needs real `.gp` files to test against; the GPIF format is undocumented.
 
 Fonts live in `assets/fonts/`: Bravura (SMuFL, 1 em = 4 staff spaces) and Noto Sans, both OFL, embedded with `include_bytes!`.
 
@@ -69,4 +69,4 @@ Keep files small and focused: split before a file approaches ~400 lines. After e
 
 ## Milestone order
 
-The approved plan builds in this order: (1) model + engraver + PDF export ✅, (2) arranger UI ✅, (3) rhythm editor ✅, (4) MusicXML import + section picker ✅, (5) Guitar Pro import, (6) polish. PDF export is the most important feature.
+The approved plan builds in this order: (1) model + engraver + PDF export ✅, (2) arranger UI ✅, (3) rhythm editor ✅, (4) MusicXML import + section picker ✅, (5) Guitar Pro import (deferred), (6) polish ✅ (recent files, README). PDF export is the most important feature.
