@@ -1,0 +1,9 @@
+[package]
+name = "engrave"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+model.workspace = true
+ttf-parser.workspace = true

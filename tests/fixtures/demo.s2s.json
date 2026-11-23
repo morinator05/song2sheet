@@ -1,0 +1,1342 @@
+{
+  "version": 1,
+  "meta": {
+    "title": "Example Song",
+    "subtitle": "Live version",
+    "artist": "The Band",
+    "key": "Am",
+    "tempo": 120,
+    "notes": "Count in 4 on hi-hat. Ending: hold last chord."
+  },
+  "segments": [
+    {
+      "id": 1,
+      "name": "Intro",
+      "time_sig": {
+        "num": 4,
+        "den": 4
+      },
+      "staves": [
+        {
+          "kind": "Drums",
+          "bars": [
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Crash"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed",
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed",
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    }
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    }
+                  }
+                ]
+              ]
+            },
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed",
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed",
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    }
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    }
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "Guitar",
+          "bars": [
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Whole"
+                    },
+                    "chord": "Am",
+                    "slash": true
+                  }
+                ]
+              ]
+            },
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Whole"
+                    },
+                    "chord": "F",
+                    "slash": true
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Verse",
+      "tempo": 120,
+      "time_sig": {
+        "num": 4,
+        "den": 4
+      },
+      "staves": [
+        {
+          "kind": "Drums",
+          "bars": [
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed",
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed",
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    }
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    }
+                  }
+                ]
+              ]
+            },
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed",
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed",
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    }
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    }
+                  }
+                ]
+              ]
+            },
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed",
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed",
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    }
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    }
+                  }
+                ]
+              ]
+            },
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Snare"
+                    ],
+                    "accent": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth",
+                      "tuplet": {
+                        "actual": 3,
+                        "normal": 2
+                      }
+                    },
+                    "drums": [
+                      "TomHigh"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth",
+                      "tuplet": {
+                        "actual": 3,
+                        "normal": 2
+                      }
+                    },
+                    "drums": [
+                      "TomHigh"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth",
+                      "tuplet": {
+                        "actual": 3,
+                        "normal": 2
+                      }
+                    },
+                    "drums": [
+                      "TomMid"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth",
+                      "tuplet": {
+                        "actual": 3,
+                        "normal": 2
+                      }
+                    },
+                    "drums": [
+                      "TomMid"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth",
+                      "tuplet": {
+                        "actual": 3,
+                        "normal": 2
+                      }
+                    },
+                    "drums": [
+                      "TomFloor"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth",
+                      "tuplet": {
+                        "actual": 3,
+                        "normal": 2
+                      }
+                    },
+                    "drums": [
+                      "TomFloor"
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "duration": {
+                      "value": "Half"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Half"
+                    }
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "Guitar",
+          "bars": [
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "chord": "Am",
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth",
+                      "dots": 1
+                    },
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Sixteenth"
+                    },
+                    "chord": "G",
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Sixteenth"
+                    },
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "slash": true
+                  }
+                ]
+              ]
+            },
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "chord": "F",
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth",
+                      "dots": 1
+                    },
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Sixteenth"
+                    },
+                    "chord": "E",
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Sixteenth"
+                    },
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "slash": true
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "Bass",
+          "bars": [
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 4,
+                        "fret": 5
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 4,
+                        "fret": 5
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 4,
+                        "fret": 5
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 4,
+                        "fret": 7
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 4,
+                        "fret": 5
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 4,
+                        "fret": 5
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 4,
+                        "fret": 8
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 4,
+                        "fret": 7
+                      }
+                    ]
+                  }
+                ]
+              ]
+            },
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 3,
+                        "fret": 3
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 3,
+                        "fret": 3
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 3,
+                        "fret": 3
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 3,
+                        "fret": 5
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 3,
+                        "fret": 3
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 3,
+                        "fret": 3
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 3,
+                        "fret": 6
+                      }
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "tab": [
+                      {
+                        "string": 3,
+                        "fret": 5
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Chorus",
+      "tempo": 124,
+      "time_sig": {
+        "num": 4,
+        "den": 4
+      },
+      "staves": [
+        {
+          "kind": "Drums",
+          "bars": [
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Crash"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Ride"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Ride",
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Ride"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Ride"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Ride"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Ride",
+                      "Snare"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Ride"
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    }
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter"
+                    }
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "Guitar",
+          "bars": [
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Half"
+                    },
+                    "chord": "C",
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Half"
+                    },
+                    "chord": "G",
+                    "slash": true
+                  }
+                ]
+              ]
+            },
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Half"
+                    },
+                    "chord": "Am",
+                    "slash": true
+                  },
+                  {
+                    "duration": {
+                      "value": "Half"
+                    },
+                    "chord": "F",
+                    "slash": true
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Bridge",
+      "tempo": 80,
+      "time_sig": {
+        "num": 6,
+        "den": 8
+      },
+      "staves": [
+        {
+          "kind": "Drums",
+          "bars": [
+            {
+              "voices": [
+                [
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatOpen"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "Snare",
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Eighth"
+                    },
+                    "drums": [
+                      "HiHatClosed"
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "duration": {
+                      "value": "Quarter",
+                      "dots": 1
+                    },
+                    "drums": [
+                      "Kick"
+                    ]
+                  },
+                  {
+                    "duration": {
+                      "value": "Quarter",
+                      "dots": 1
+                    }
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sheet": [
+    {
+      "segment": 1,
+      "repeat": 2
+    },
+    {
+      "segment": 2,
+      "label": "Verse 1",
+      "repeat": 1
+    },
+    {
+      "segment": 3,
+      "repeat": 2,
+      "comment": "Big!"
+    },
+    {
+      "segment": 2,
+      "label": "Verse 2",
+      "repeat": 1,
+      "comment": "Quieter, guitar palm muted",
+      "part_comments": [
+        {
+          "kind": "Drums",
+          "text": "Cross-stick instead of snare"
+        }
+      ]
+    },
+    {
+      "segment": 3,
+      "repeat": 2
+    },
+    {
+      "segment": 4,
+      "repeat": 4,
+      "comment": "Feel change, half time"
+    },
+    {
+      "segment": 3,
+      "label": "Chorus (last)",
+      "repeat": 4
+    },
+    {
+      "segment": 1,
+      "label": "Outro",
+      "repeat": 1,
+      "comment": "Ritardando on the last bar"
+    }
+  ]
+}

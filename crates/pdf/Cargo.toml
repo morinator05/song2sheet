@@ -1,0 +1,12 @@
+[package]
+name = "pdf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+engrave.workspace = true
+krilla.workspace = true
+
+[dev-dependencies]
+model.workspace = true
