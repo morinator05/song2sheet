@@ -16,6 +16,8 @@ cargo fmt                                     # rustfmt.toml: use_small_heuristi
 cargo clippy --all-targets -- -D warnings
 ```
 
+`tests/fixtures/groove.musicxml` and `groove.mxl` are real MuseScore exports. If MuseScore is installed, make new fixtures by writing or editing a score and running `QT_QPA_PLATFORM=offscreen mscore -o out.musicxml in.musicxml`. Real files contain a `<!DOCTYPE>`, so the parser must allow DTDs.
+
 Dependencies are built with `opt-level = 2` even in dev builds (root `Cargo.toml`). The raster and pdf tests write `target/test-output/demo-*.png` and `demo.pdf` from `tests/fixtures/demo.s2s.json`. **Look at those images after you change the engraving or the layout.** `pdftoppm -png demo.pdf x` rasterizes the PDF so you can compare it with the preview.
 
 ## Architecture
@@ -28,16 +30,24 @@ A Cargo workspace; dependency versions live in `[workspace.dependencies]`.
   - `layout/`: the page structure. `header`, `row` (left column, notation and comments) and pagination in `mod.rs`. `segment.rs`'s `layout_segment` engraves one section at the same notation width as on the sheet, for the editor.
   - `notation/`: the music. `systems` measures bars into shared onset `Columns` and packs them into systems (balanced, bars may shrink to `MIN_SCALE`). `staff` draws one staff of one system, `events` draws one beat, and `beams` adds beams, flags and tuplets. All sizes are in `metrics.rs`. `BeatBox`es record where each beat is drawn, for the editor.
   - `fonts::glyph_run` is the **only** way text is turned into glyphs. It uses plain advances with no shaping. Measuring, the raster preview and the PDF all go through it, which is what makes the preview match the printout.
+- `crates/import`: MusicXML (`.musicxml`/`.xml`/`.mxl`) → `Score` (one staff per part plus per-bar time signature and tempo).
+  - `extract(score, bars, parts, name)` cuts out a `Segment`.
+  - `musicxml/measure.rs` walks the measures in MusicXML divisions, following `<backup>`/`<forward>`.
+  - Pitched notes without fret info become rhythm slashes; a song sheet shows rhythm, not melody.
+  - Drums are mapped through `<midi-unpitched>` (General MIDI + 1), falling back to the staff position.
+  - Chord symbols are collected by their position in the bar and attached to whichever staff of the part is kept. A part may have several staves; the tab staff wins.
 - `crates/raster`: draws a `Page` with `tiny-skia`. The app shows this image as its preview. Don't add a separate egui-native notation renderer.
 - `crates/pdf`: draws the `DisplayList` with `krilla`, via `draw_glyphs` and `glyph_run`, never `draw_text`.
 - `app/`: the `eframe`/`egui` binary. It has `document` (file I/O; saves via a temporary file and detects unsaved changes by comparing against the last saved `Project`), `preview` (rerasterizes when the project, filter or width differs from the last render), and `screens/`:
   - `song_panel`: song details and the section pool.
   - `arranger`: sheet rows with drag-to-reorder.
-  - `editor/`: the section editor. `keys` is the **single source** of shortcuts; the legend and toolbar hints are generated from it. `commands` holds the pure edit commands, `cursor` the navigation, `view` the rendered section with cursor and click hit-testing, and `toolbar` the buttons.
+  - `picker/`: imports a score, chooses parts and a bar range (overview drawn in chunks of up to 8 bars, split at time-signature changes) and creates a section.
+  - `notation_view`: a rendered section with a highlight (cursor or bars) and click hit-testing, shared by the editor and the picker.
+  - `editor/`: the section editor. `keys` is the **single source** of shortcuts; the legend and toolbar hints are generated from it. `commands` holds the pure edit commands, `cursor` the navigation, and `toolbar` the buttons.
   - `widgets`: shared constants, icons and helpers.
 
   Keyboard scheme: a Guitar Pro-style beat cursor with MuseScore duration numbers (2–7). On guitar and bass staves, digits type frets.
-- Not built yet: `crates/import` (MusicXML, Guitar Pro 7/8) and the section picker.
+- Not built yet: Guitar Pro import (users can export MusicXML from Guitar Pro meanwhile).
 
 Fonts live in `assets/fonts/`: Bravura (SMuFL, 1 em = 4 staff spaces) and Noto Sans, both OFL, embedded with `include_bytes!`.
 
@@ -59,4 +69,4 @@ Keep files small and focused: split before a file approaches ~400 lines. After e
 
 ## Milestone order
 
-The approved plan builds in this order: (1) model + engraver + PDF export ✅, (2) arranger UI ✅, (3) rhythm editor ✅, (4) MusicXML import + section picker, (5) Guitar Pro import, (6) polish. PDF export is the most important feature.
+The approved plan builds in this order: (1) model + engraver + PDF export ✅, (2) arranger UI ✅, (3) rhythm editor ✅, (4) MusicXML import + section picker ✅, (5) Guitar Pro import, (6) polish. PDF export is the most important feature.

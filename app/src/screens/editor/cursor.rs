@@ -84,21 +84,9 @@ impl Cursor {
         self.staff = staff.min(seg.staves.len().saturating_sub(1));
         self.voice = voice;
         ensure_voice(seg, self);
-        self.beat = self.voice(seg).map_or(0, |v| beat_at(v, tick));
+        self.beat = self.voice(seg).map_or(0, |v| edit::beat_at(v, tick));
         self.clamp(seg);
     }
-}
-
-/// Index of the beat sounding at `tick`.
-pub fn beat_at(voice: &[Beat], tick: u32) -> usize {
-    let mut t = 0;
-    for (i, b) in voice.iter().enumerate() {
-        t += b.duration.ticks();
-        if tick < t {
-            return i;
-        }
-    }
-    voice.len().saturating_sub(1)
 }
 
 /// Creates the cursor's voice (filled with rests) if the bar lacks it.
@@ -154,13 +142,5 @@ mod tests {
         assert_eq!(c.beat, 0);
         c.switch(&mut s, 0, 0);
         assert_eq!(c.beat, 0, "tick of the whole rest is 0");
-    }
-
-    #[test]
-    fn beat_at_finds_the_sounding_beat() {
-        let v = vec![Beat::rest(Duration::new(NoteValue::Quarter)); 4];
-        assert_eq!(beat_at(&v, 0), 0);
-        assert_eq!(beat_at(&v, 1000), 1);
-        assert_eq!(beat_at(&v, 99999), 3);
     }
 }

@@ -11,3 +11,4 @@ ttf-parser.workspace = true
 
 [dev-dependencies]
 model.workspace = true
+import.workspace = true

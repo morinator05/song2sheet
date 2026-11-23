@@ -19,6 +19,7 @@ const SAVE: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::S)
 enum Screen {
     Sheet,
     Editor,
+    Picker,
 }
 
 /// File actions that may discard unsaved changes.
@@ -33,6 +34,7 @@ pub struct App {
     doc: Document,
     screen: Screen,
     editor: screens::editor::EditorState,
+    picker: screens::picker::PickerState,
     preview: Preview,
     filter: PartFilter,
     /// Last error or confirmation, shown in the toolbar.
@@ -50,6 +52,7 @@ impl Default for App {
             doc: Document::new(),
             screen: Screen::Sheet,
             editor: Default::default(),
+            picker: Default::default(),
             preview: Preview::default(),
             filter: PartFilter::All,
             status: String::new(),
@@ -94,6 +97,7 @@ impl eframe::App for App {
         egui::CentralPanel::default().show(ui, |ui| match self.screen {
             Screen::Sheet => screens::arranger::show(ui, &mut self.doc.project),
             Screen::Editor => screens::editor::show(ui, &mut self.doc.project, &mut self.editor),
+            Screen::Picker => screens::picker::show(ui, &mut self.doc.project, &mut self.picker),
         });
         self.confirm_dialog(ui.ctx());
     }
@@ -117,6 +121,7 @@ impl App {
             ui.separator();
             ui.selectable_value(&mut self.screen, Screen::Sheet, SHEET_TITLE);
             ui.selectable_value(&mut self.screen, Screen::Editor, EDITOR_TITLE);
+            ui.selectable_value(&mut self.screen, Screen::Picker, screens::picker::PICKER_TITLE);
             ui.separator();
             ui.label(&self.status);
         });

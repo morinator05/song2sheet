@@ -2,5 +2,7 @@
 
 pub mod arranger;
 pub mod editor;
+mod notation_view;
+pub mod picker;
 pub mod song_panel;
 pub mod widgets;

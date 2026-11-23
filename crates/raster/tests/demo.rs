@@ -33,3 +33,15 @@ fn render_section_editor_view() {
     assert!(!view.beats.is_empty());
     raster::render(&view.page, 6.0).save_png(out.join("demo-section-verse.png")).unwrap();
 }
+
+#[test]
+fn render_imported_musicxml() {
+    let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/test-output");
+    std::fs::create_dir_all(&out).unwrap();
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/groove.musicxml");
+    let score = import::load(&fixture).unwrap();
+    let seg = import::extract(&score, 0..4, &[0, 1, 2], "Imported");
+    let view = engrave::layout_segment(&seg);
+    raster::render(&view.page, 6.0).save_png(out.join("import-groove.png")).unwrap();
+}

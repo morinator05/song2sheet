@@ -5,19 +5,18 @@ mod commands;
 mod cursor;
 mod keys;
 mod toolbar;
-mod view;
 
 use eframe::egui;
 use model::{Project, Segment, SegmentId, StaffKind, TimeSig, edit};
 
+use super::notation_view::{Highlight, NotationView};
 use super::widgets::{
     BLOCK_GAP, EDITOR_TITLE, ICON_ADD, ICON_DELETE, ICON_EDIT, ICON_REMOVE, NAME_FIELD_W,
     SHORT_FIELD_W, SMALL_COMBO_W, TEMPO_LABEL, optional_bpm,
 };
 use commands::{Command, Input};
-use cursor::Cursor;
+pub use cursor::Cursor;
 use keys::Action;
-use view::NotationView;
 
 #[derive(Default)]
 pub struct EditorState {
@@ -73,7 +72,7 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut EditorState) {
         if let Some(cmd) = toolbar::show(ui, seg, &state.cursor) {
             state.apply(cmd, seg, ui.input(|i| i.time));
         }
-        if let Some(b) = state.view.show(ui, seg, &state.cursor) {
+        if let Some(b) = state.view.show(ui, seg, Highlight::Cursor(&state.cursor)) {
             state.cursor =
                 Cursor { staff: b.staff, bar: b.bar, voice: b.voice, beat: b.beat, ..state.cursor };
         }

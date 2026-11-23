@@ -120,6 +120,11 @@ pub mod dialogs {
         dialog.save_file().map(with_song_extension)
     }
 
+    /// A score to import sections from (MusicXML).
+    pub fn open_score() -> Option<PathBuf> {
+        rfd::FileDialog::new().add_filter("MusicXML score", &import::EXTENSIONS).pick_file()
+    }
+
     pub fn export_pdf(stem: &str) -> Option<PathBuf> {
         rfd::FileDialog::new()
             .add_filter("PDF", &["pdf"])

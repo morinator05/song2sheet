@@ -4,15 +4,28 @@
 //! time from (or gives time to) the following beats, which are filled up
 //! with rests.
 
-use crate::{Bar, Beat, Duration, NoteValue, Segment, Tuplet};
+use crate::{Bar, Beat, Duration, NoteValue, Segment, TICKS_PER_WHOLE, TimeSig, Tuplet};
 
 /// Rest value used to fill bars when no other duration is in play
 /// (whole rests where they fit, so as few rests as possible).
 pub const DEFAULT_REST: Duration = Duration::new(NoteValue::Whole);
 
+/// Every filler rest value is a multiple of this many ticks (the triplet
+/// 32nd is 80, the dotted 32nd 180), so only multiples can be filled exactly.
+pub const REST_GRAIN: u32 = 20;
+/// Longest time filled by the exact search: the longest supported bar.
+const MAX_EXACT_FILL: u32 = TICKS_PER_WHOLE * TimeSig::MAX_NUM as u32 / MIN_DENOMINATOR;
+const MIN_DENOMINATOR: u32 = 2;
+
 /// Rests filling exactly `ticks`: as many rests of `preferred` as allow
 /// an exact fill, then as few other rests as possible, longest first.
+/// Times that can't be filled exactly (not a multiple of [`REST_GRAIN`],
+/// or longer than any bar) get the longest rests that fit, leaving less
+/// than the shortest rest unfilled. Callers pass at most a bar's length.
 pub fn rests(ticks: u32, preferred: Duration) -> Vec<Beat> {
+    if !ticks.is_multiple_of(REST_GRAIN) || ticks > MAX_EXACT_FILL {
+        return greedy_fill(ticks).into_iter().map(Beat::rest).collect();
+    }
     let step = preferred.ticks();
     let max_preferred = ticks.checked_div(step).unwrap_or(0);
     for count in (0..=max_preferred).rev() {
@@ -22,8 +35,31 @@ pub fn rests(ticks: u32, preferred: Duration) -> Vec<Beat> {
             return out;
         }
     }
-    // Only possible with unsupported meters (see `TimeSig::is_supported`).
-    Vec::new()
+    greedy_fill(ticks).into_iter().map(Beat::rest).collect()
+}
+
+/// Longest rests first until less than the shortest rest is left.
+fn greedy_fill(ticks: u32) -> Vec<Duration> {
+    let values = rest_values();
+    let mut out = Vec::new();
+    let mut left = ticks;
+    while let Some(d) = values.iter().find(|d| d.ticks() <= left && d.ticks() > 0) {
+        out.push(*d);
+        left -= d.ticks();
+    }
+    out
+}
+
+/// Index of the beat sounding at `tick` (the last beat if past the end).
+pub fn beat_at(voice: &[Beat], tick: u32) -> usize {
+    let mut t = 0;
+    for (i, b) in voice.iter().enumerate() {
+        t += b.duration.ticks();
+        if tick < t {
+            return i;
+        }
+    }
+    voice.len().saturating_sub(1)
 }
 
 /// Every duration a filler rest may have: plain, dotted and triplet values.
@@ -43,16 +79,11 @@ fn rest_values() -> Vec<Duration> {
 /// the quick greedy fill first and searches for the fewest rests only when
 /// greedy gets stuck.
 fn exact_fill(ticks: u32) -> Option<Vec<Duration>> {
-    let values = rest_values();
-    let mut greedy = Vec::new();
-    let mut left = ticks;
-    while let Some(d) = values.iter().find(|d| d.ticks() <= left && d.ticks() > 0) {
-        greedy.push(*d);
-        left -= d.ticks();
-    }
-    if left == 0 {
+    let greedy = greedy_fill(ticks);
+    if greedy.iter().map(|d| d.ticks()).sum::<u32>() == ticks {
         return Some(greedy);
     }
+    let values = rest_values();
     let n = ticks as usize;
     // For every tick count up to `ticks`: fewest rests and the last one used.
     let mut count = vec![u32::MAX; n + 1];
@@ -236,6 +267,25 @@ mod tests {
         assert!(seg.time_sig.is_supported());
         let bar_ticks = seg.time_sig.bar_ticks();
         assert_eq!(total(&seg.staves[0].bars[0].voices[0]), bar_ticks);
+    }
+
+    #[test]
+    fn odd_and_huge_gaps_fill_quickly_without_overrun() {
+        let shortest = rest_values().iter().map(|d| d.ticks()).min().unwrap();
+        for ticks in [70, 3_850, 700_001] {
+            let start = std::time::Instant::now();
+            let r = rests(ticks, DEFAULT_REST);
+            assert!(total(&r) <= ticks && ticks - total(&r) < shortest, "{ticks}");
+            assert!(start.elapsed().as_secs() < 1, "{ticks} took too long");
+        }
+    }
+
+    #[test]
+    fn beat_at_finds_the_sounding_beat() {
+        let v = vec![Beat::rest(Duration::new(NoteValue::Quarter)); 4];
+        assert_eq!(beat_at(&v, 0), 0);
+        assert_eq!(beat_at(&v, 1000), 1);
+        assert_eq!(beat_at(&v, 99_999), 3);
     }
 
     #[test]

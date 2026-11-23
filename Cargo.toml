@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/model", "crates/engrave", "crates/pdf", "crates/raster", "app"]
+members = ["crates/model", "crates/engrave", "crates/import", "crates/pdf", "crates/raster", "app"]
 
 [workspace.package]
 version = "0.1.0"
@@ -10,6 +10,7 @@ license = "MIT"
 [workspace.dependencies]
 model = { path = "crates/model" }
 engrave = { path = "crates/engrave" }
+import = { path = "crates/import" }
 pdf = { path = "crates/pdf" }
 raster = { path = "crates/raster" }
 serde = { version = "1", features = ["derive"] }

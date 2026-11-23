@@ -1,5 +1,7 @@
-//! The engraved section with the editing cursor drawn on top. Clicking a
-//! beat selects it.
+//! An engraved section with a highlight on top (the editor's cursor or the
+//! picker's bar selection). Clicking reports the beat under the pointer.
+
+use std::ops::Range;
 
 use eframe::egui::{
     self, Color32, ColorImage, Rect, Sense, TextureHandle, TextureOptions, pos2, vec2,
@@ -7,17 +9,26 @@ use eframe::egui::{
 use engrave::BeatBox;
 use model::Segment;
 
-use super::cursor::Cursor;
-use crate::screens::widgets::image_widths;
+use super::editor::Cursor;
+use super::widgets::image_widths;
 
-/// How far above/below the staff lines a click or the cursor reaches (mm).
+/// How far above/below the staff lines a click or highlight reaches (mm).
 const REACH: f32 = 3.0;
-/// Opacity of the selected-beat highlight.
-const CURSOR_ALPHA: f32 = 0.35;
-const CURSOR_ROUNDING: f32 = 2.0;
+/// Opacity of the highlight.
+const HIGHLIGHT_ALPHA: f32 = 0.35;
+const HIGHLIGHT_ROUNDING: f32 = 2.0;
 /// Half height (mm) of the mark on the selected tab string.
 const STRING_MARK_HALF_H: f32 = 0.6;
 const STRING_MARK_COLOR: Color32 = Color32::from_rgba_premultiplied(110, 30, 30, 110);
+
+/// What to highlight.
+#[derive(Clone, Copy, Debug)]
+pub enum Highlight<'a> {
+    /// The editor's selected beat (and tab string).
+    Cursor(&'a Cursor),
+    /// Whole bars, on every staff.
+    Bars(&'a Range<usize>),
+}
 
 #[derive(Default)]
 pub struct NotationView {
@@ -29,8 +40,13 @@ pub struct NotationView {
 }
 
 impl NotationView {
-    /// Shows `seg` with `cursor`. Returns the beat the user clicked.
-    pub fn show(&mut self, ui: &mut egui::Ui, seg: &Segment, cursor: &Cursor) -> Option<BeatBox> {
+    /// Shows `seg` with `highlight`. Returns the beat the user clicked.
+    pub fn show(
+        &mut self,
+        ui: &mut egui::Ui,
+        seg: &Segment,
+        highlight: Highlight,
+    ) -> Option<BeatBox> {
         let (width, px_width) = image_widths(ui);
         let fresh = self.rendered.as_ref().is_some_and(|(s, w)| s == seg && *w == px_width);
         if !fresh {
@@ -47,27 +63,31 @@ impl NotationView {
             Rect::from_min_max(origin + vec2(x0, y0) * scale, origin + vec2(x1, y1) * scale)
         };
 
-        if let Some(b) = self.beats.iter().find(|b| is_at(b, cursor)) {
-            let painter = ui.painter_at(response.rect);
-            let highlight = ui.visuals().selection.bg_fill.gamma_multiply(CURSOR_ALPHA);
+        let painter = ui.painter_at(response.rect);
+        let fill = ui.visuals().selection.bg_fill.gamma_multiply(HIGHLIGHT_ALPHA);
+        for a in highlight_areas(&self.beats, highlight) {
             painter.rect_filled(
-                to_screen(b.x0, b.y0 - REACH, b.x1, b.y1 + REACH),
-                CURSOR_ROUNDING,
-                highlight,
+                to_screen(a.x0, a.y0 - REACH, a.x1, a.y1 + REACH),
+                HIGHLIGHT_ROUNDING,
+                fill,
             );
-            if let Some(y) = string_y(seg, cursor, b) {
-                let mark = to_screen(b.x0, y - STRING_MARK_HALF_H, b.x1, y + STRING_MARK_HALF_H);
-                painter.rect_filled(mark, CURSOR_ROUNDING / 2.0, STRING_MARK_COLOR);
-            }
+        }
+        if let Highlight::Cursor(cursor) = highlight
+            && let Some(b) = self.beats.iter().find(|b| is_at(b, cursor))
+            && let Some(y) = string_y(seg, cursor, b)
+        {
+            let mark = to_screen(b.x0, y - STRING_MARK_HALF_H, b.x1, y + STRING_MARK_HALF_H);
+            painter.rect_filled(mark, HIGHLIGHT_ROUNDING / 2.0, STRING_MARK_COLOR);
         }
 
         let click = response.clicked().then(|| response.interact_pointer_pos()).flatten()?;
-        // Typing should go to the editor again, not to a focused widget.
+        // Typing should go to the notation again, not to a focused widget.
         if let Some(focused) = ui.memory(|m| m.focused()) {
             ui.memory_mut(|m| m.surrender_focus(focused));
         }
         let mm = (click - origin) / scale;
-        hit(&self.beats, pos2(mm.x, mm.y), cursor.voice)
+        let voice = if let Highlight::Cursor(c) = highlight { c.voice } else { 0 };
+        hit(&self.beats, pos2(mm.x, mm.y), voice)
     }
 
     fn render(&mut self, ctx: &egui::Context, seg: &Segment, px_width: f32) {
@@ -75,10 +95,30 @@ impl NotationView {
         let pixmap = raster::render(&view.page, px_width / view.page.width);
         let size = [pixmap.width() as usize, pixmap.height() as usize];
         let image = ColorImage::from_rgba_premultiplied(size, pixmap.data());
-        self.texture = Some(ctx.load_texture("section-editor", image, TextureOptions::LINEAR));
+        self.texture = Some(ctx.load_texture("notation-view", image, TextureOptions::LINEAR));
         self.beats = view.beats;
         self.page_width = view.page.width;
         self.rendered = Some((seg.clone(), px_width));
+    }
+}
+
+/// Areas to fill: the cursor's beat, or one box per selected bar and staff.
+fn highlight_areas(beats: &[BeatBox], highlight: Highlight) -> Vec<BeatBox> {
+    match highlight {
+        Highlight::Cursor(c) => beats.iter().filter(|b| is_at(b, c)).copied().collect(),
+        Highlight::Bars(bars) => {
+            let mut areas: Vec<BeatBox> = Vec::new();
+            for b in beats.iter().filter(|b| bars.contains(&b.bar)) {
+                match areas.iter_mut().find(|a| a.bar == b.bar && a.staff == b.staff) {
+                    Some(a) => {
+                        a.x0 = a.x0.min(b.x0);
+                        a.x1 = a.x1.max(b.x1);
+                    }
+                    None => areas.push(*b),
+                }
+            }
+            areas
+        }
     }
 }
 
@@ -125,5 +165,18 @@ mod tests {
         let beats = [beat(0, 0, 0.0, 10.0), beat(1, 0, 0.0, 10.0)];
         assert_eq!(hit(&beats, pos2(1.0, 12.0), 1).map(|b| b.voice), Some(1));
         assert_eq!(hit(&beats, pos2(1.0, 12.0), 0).map(|b| b.voice), Some(0));
+    }
+
+    #[test]
+    fn bar_highlight_covers_each_selected_bar_once_per_staff() {
+        let beats = [
+            beat(0, 0, 0.0, 5.0),
+            beat(0, 1, 5.0, 10.0),
+            beat(1, 0, 0.0, 10.0),
+            BeatBox { bar: 1, ..beat(0, 0, 10.0, 20.0) },
+        ];
+        let areas = highlight_areas(&beats, Highlight::Bars(&(0..1)));
+        assert_eq!(areas.len(), 1);
+        assert_eq!((areas[0].x0, areas[0].x1), (0.0, 10.0));
     }
 }
