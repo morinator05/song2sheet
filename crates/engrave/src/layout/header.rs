@@ -3,7 +3,7 @@
 use model::{PartFilter, Project};
 
 use super::text::{centered, display_title, hrule, right_aligned, tempo_mark, text, wrap};
-use super::{CONTENT_W, MARGIN_X};
+use super::{CONTENT_W, HEADER_RULE_W, MARGIN_X};
 use crate::display::{A4_WIDTH, Item, Shade, bbox_of};
 use crate::fonts::FontId;
 
@@ -17,6 +17,8 @@ const NOTES_LINE_H: f32 = INFO_SIZE * 1.35;
 const RULE_GAP: f32 = 2.5;
 /// Space between the rule and the first row.
 const AFTER_RULE: f32 = 1.0;
+/// Space between the tempo mark and the next fact on the info line.
+const INFO_ITEM_GAP: f32 = 3.0;
 
 /// Header items starting at `top`; returns them and the y where rows start.
 pub fn header(project: &Project, filter: PartFilter, top: f32) -> (Vec<Item>, f32) {
@@ -44,7 +46,7 @@ pub fn header(project: &Project, filter: PartFilter, top: f32) -> (Vec<Item>, f3
         let mut x = MARGIN_X;
         if let Some(bpm) = m.tempo {
             let mark = tempo_mark(x, y, bpm, INFO_SIZE);
-            x = bbox_of(&mark).map_or(x, |b| b.x1) + 3.0;
+            x = bbox_of(&mark).map_or(x, |b| b.x1) + INFO_ITEM_GAP;
             items.extend(mark);
         }
         if !facts.is_empty() {
@@ -59,6 +61,6 @@ pub fn header(project: &Project, filter: PartFilter, top: f32) -> (Vec<Item>, f3
         items.push(text(MARGIN_X, y, INFO_SIZE, FontId::Regular, line));
     }
     y += RULE_GAP;
-    items.push(hrule(MARGIN_X, A4_WIDTH - MARGIN_X, y, 0.35, Shade::BLACK));
+    items.push(hrule(MARGIN_X, A4_WIDTH - MARGIN_X, y, HEADER_RULE_W, Shade::BLACK));
     (items, y + AFTER_RULE)
 }

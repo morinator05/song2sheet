@@ -25,11 +25,12 @@ impl std::fmt::Display for ExportError {
 
 impl std::error::Error for ExportError {}
 
-/// Renders all pages of `list` into PDF bytes. `title` goes into the metadata.
-pub fn export(list: &DisplayList, title: &str) -> Result<Vec<u8>, ExportError> {
+/// Renders all pages of `list` into PDF bytes. `title` and `creator`
+/// (the producing application) go into the metadata.
+pub fn export(list: &DisplayList, title: &str, creator: &str) -> Result<Vec<u8>, ExportError> {
     let fonts = load_fonts()?;
     let mut doc = Document::new();
-    doc.set_metadata(Metadata::new().title(title.to_string()).creator("song2sheet".into()));
+    doc.set_metadata(Metadata::new().title(title.to_string()).creator(creator.to_string()));
     for page in &list.pages {
         let settings = PageSettings::from_wh(page.width * PT_PER_MM, page.height * PT_PER_MM)
             .ok_or_else(|| ExportError("invalid page size".into()))?;

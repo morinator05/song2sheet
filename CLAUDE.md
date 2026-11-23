@@ -23,20 +23,29 @@ Dependencies are built with `opt-level = 2` even in dev builds (root `Cargo.toml
 A Cargo workspace; dependency versions live in `[workspace.dependencies]`.
 
 - `crates/model`: data types and serde for the `.s2s.json` file. It has no UI or rendering dependencies.
+  - `edit.rs` holds the editing operations (`set_duration`, `fit`, `rests`, `normalize`, `prune`). **Invariant: every voice fills its bar exactly.** Changes to beats go through `edit::*`; `edit::normalize` runs when a section is opened in the editor. Rest-only extra voices are `prune`d when saving.
 - `crates/engrave`: turns `Project` + `PartFilter` into a `DisplayList` of A4 pages. The pages hold primitives (lines, rects, text) in **mm, top-left origin, y down, with text placed at its baseline**.
-  - `layout/`: the page structure. `header`, `row` (left column, notation and comments) and pagination in `mod.rs`.
-  - `notation/`: the music. `systems` measures bars into shared onset `Columns` and packs them into systems (balanced, bars may shrink to `MIN_SCALE`). `staff` draws one staff of one system, `events` draws one beat, and `beams` adds beams, flags and tuplets. All sizes are in `metrics.rs`.
+  - `layout/`: the page structure. `header`, `row` (left column, notation and comments) and pagination in `mod.rs`. `segment.rs`'s `layout_segment` engraves one section at the same notation width as on the sheet, for the editor.
+  - `notation/`: the music. `systems` measures bars into shared onset `Columns` and packs them into systems (balanced, bars may shrink to `MIN_SCALE`). `staff` draws one staff of one system, `events` draws one beat, and `beams` adds beams, flags and tuplets. All sizes are in `metrics.rs`. `BeatBox`es record where each beat is drawn, for the editor.
   - `fonts::glyph_run` is the **only** way text is turned into glyphs. It uses plain advances with no shaping. Measuring, the raster preview and the PDF all go through it, which is what makes the preview match the printout.
 - `crates/raster`: draws a `Page` with `tiny-skia`. The app shows this image as its preview. Don't add a separate egui-native notation renderer.
 - `crates/pdf`: draws the `DisplayList` with `krilla`, via `draw_glyphs` and `glyph_run`, never `draw_text`.
-- `app/`: the `eframe`/`egui` binary. It has `document` (file I/O; saves via a temporary file and detects unsaved changes by comparing against the last saved `Project`), `preview` (rerasterizes when the project, filter or width differs from the last render), and `screens/`: `song_panel` (song details and the section pool) and `arranger` (sheet rows with drag-to-reorder).
-- Not built yet: `crates/import` (MusicXML, Guitar Pro 7/8), the section picker, the rhythm editor.
+- `app/`: the `eframe`/`egui` binary. It has `document` (file I/O; saves via a temporary file and detects unsaved changes by comparing against the last saved `Project`), `preview` (rerasterizes when the project, filter or width differs from the last render), and `screens/`:
+  - `song_panel`: song details and the section pool.
+  - `arranger`: sheet rows with drag-to-reorder.
+  - `editor/`: the section editor. `keys` is the **single source** of shortcuts; the legend and toolbar hints are generated from it. `commands` holds the pure edit commands, `cursor` the navigation, `view` the rendered section with cursor and click hit-testing, and `toolbar` the buttons.
+  - `widgets`: shared constants, icons and helpers.
+
+  Keyboard scheme: a Guitar Pro-style beat cursor with MuseScore duration numbers (2–7). On guitar and bass staves, digits type frets.
+- Not built yet: `crates/import` (MusicXML, Guitar Pro 7/8) and the section picker.
 
 Fonts live in `assets/fonts/`: Bravura (SMuFL, 1 em = 4 staff spaces) and Noto Sans, both OFL, embedded with `include_bytes!`.
 
 ## Code quality
 
 Keep files small and focused: split before a file approaches ~400 lines. After each chunk of work, run a review agent and address its findings.
+
+**No magic numbers or strings.** A bare literal is fine only when its meaning is obvious where it stands, such as `0.0`, or `/ 2.0` for a centre. Anything used in two or more places becomes a named constant immediately; values shared across files go in a shared module. Engraving sizes live in `engrave/src/notation/metrics.rs`.
 
 ## Data model conventions (`crates/model`)
 
@@ -50,4 +59,4 @@ Keep files small and focused: split before a file approaches ~400 lines. After e
 
 ## Milestone order
 
-The approved plan builds in this order: (1) model + engraver + PDF export ✅, (2) arranger UI ✅, (3) rhythm editor, (4) MusicXML import + section picker, (5) Guitar Pro import, (6) polish. PDF export is the most important feature.
+The approved plan builds in this order: (1) model + engraver + PDF export ✅, (2) arranger UI ✅, (3) rhythm editor ✅, (4) MusicXML import + section picker, (5) Guitar Pro import, (6) polish. PDF export is the most important feature.

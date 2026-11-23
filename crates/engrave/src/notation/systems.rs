@@ -6,7 +6,7 @@ use std::ops::Range;
 use model::{NoteValue, Segment, Staff};
 
 use super::metrics::*;
-use super::staff::{engrave_staff, time_sig_width};
+use super::staff::{beat_boxes, engrave_staff, time_sig_width};
 use crate::display::{Item, bbox_of};
 
 /// Space after a 32nd note …
@@ -14,12 +14,15 @@ const GAP_32ND: f32 = 1.3 * SP;
 /// … plus this much for every doubling of the duration.
 const GAP_PER_DOUBLING: f32 = 0.9 * SP;
 /// Extra space after a dotted note.
-const DOT_GAP: f32 = 0.8 * SP;
+const DOT_SPACE: f32 = 0.8 * SP;
+/// Shorter onsets (e.g. 64th-note spacing) get no less than half a 32nd's
+/// doubling count, so `gap` stays positive.
+const MIN_GAP_FRACTION: f32 = 0.5;
 
 /// Horizontal space after an onset that lasts `ticks` until the next onset.
 fn gap(ticks: u32) -> f32 {
     let shortest = NoteValue::ThirtySecond.ticks() as f32;
-    let doublings = (ticks as f32 / shortest).max(0.5).log2();
+    let doublings = (ticks as f32 / shortest).max(MIN_GAP_FRACTION).log2();
     GAP_32ND + GAP_PER_DOUBLING * doublings
 }
 
@@ -56,7 +59,7 @@ impl Columns {
             let next = onsets.get(i + 1).copied().unwrap_or(end);
             x += gap(next.saturating_sub(t));
             if dotted.contains(&t) {
-                x += DOT_GAP;
+                x += DOT_SPACE;
             }
         }
         Self { onsets, offsets, width: x + PAD_R }
@@ -117,6 +120,32 @@ pub struct Block {
     pub height: f32,
     /// One label per staff drawn, for the caller to place left of it.
     pub staff_labels: Vec<StaffLabel>,
+    /// Where each beat is, for editors.
+    pub beats: Vec<BeatBox>,
+}
+
+/// Area covered by one beat: from just before its notehead to the next
+/// beat, over the height of its staff lines.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BeatBox {
+    pub staff: usize,
+    pub bar: usize,
+    pub voice: usize,
+    pub beat: usize,
+    pub x0: f32,
+    pub x1: f32,
+    /// Top and bottom staff line.
+    pub y0: f32,
+    pub y1: f32,
+}
+
+impl BeatBox {
+    pub fn translate(&mut self, dx: f32, dy: f32) {
+        self.x0 += dx;
+        self.x1 += dx;
+        self.y0 += dy;
+        self.y1 += dy;
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -150,12 +179,18 @@ pub fn engrave_segment(seg: &Segment, staves: &[&Staff], width: f32, repeat: boo
     let mut block = Block::default();
     let mut y = 0.0;
     for sys in &systems {
-        for (staff, &style) in staves.iter().zip(&styles) {
+        for (staff_index, (staff, &style)) in staves.iter().zip(&styles).enumerate() {
             let mut items = engrave_staff(staff, style, seg, sys, repeat);
             let (top, bottom) = bbox_of(&items).map_or((0.0, 0.0), |b| (b.y0, b.y1));
             let dy = y - top.min(0.0);
             items.iter_mut().for_each(|it| it.translate(0.0, dy));
             block.items.extend(items);
+            block.beats.extend(beat_boxes(staff, staff_index, sys, style).into_iter().map(
+                |mut b| {
+                    b.translate(0.0, dy);
+                    b
+                },
+            ));
             let label = StaffLabel {
                 y: dy + style.height() / 2.0,
                 text: staff.display_label().to_string(),

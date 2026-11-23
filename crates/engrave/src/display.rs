@@ -7,6 +7,10 @@ use crate::fonts::{self, FontId};
 pub const A4_WIDTH: f32 = 210.0;
 pub const A4_HEIGHT: f32 = 297.0;
 
+/// Assumed ascent and descent of text fonts, in em.
+const TEXT_ASCENT: f32 = 0.75;
+const TEXT_DESCENT: f32 = 0.25;
+
 /// Gray level: 0 = black, 255 = white.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Shade(pub u8);
@@ -74,9 +78,9 @@ impl Item {
             }
             Item::Text { x, y, size, font, text } => BBox {
                 x0: *x,
-                y0: y - 0.75 * size,
+                y0: y - TEXT_ASCENT * size,
                 x1: x + fonts::text_width(*font, *size, text),
-                y1: y + 0.25 * size,
+                y1: y + TEXT_DESCENT * size,
             },
         }
     }

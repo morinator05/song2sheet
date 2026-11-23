@@ -22,3 +22,14 @@ fn render_demo_pages() {
         }
     }
 }
+
+#[test]
+fn render_section_editor_view() {
+    let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/test-output");
+    std::fs::create_dir_all(&out).unwrap();
+    let p = demo();
+    let verse = p.segments.iter().find(|s| s.name == "Verse").unwrap();
+    let view = engrave::layout_segment(verse);
+    assert!(!view.beats.is_empty());
+    raster::render(&view.page, 6.0).save_png(out.join("demo-section-verse.png")).unwrap();
+}

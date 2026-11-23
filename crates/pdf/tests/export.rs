@@ -4,7 +4,7 @@ use model::{PartFilter, Project};
 fn exports_demo_as_a4_pdf() {
     let p = Project::from_json(include_str!("../../../tests/fixtures/demo.s2s.json")).unwrap();
     let list = engrave::layout_sheet(&p, PartFilter::All);
-    let bytes = pdf::export(&list, &p.meta.title).unwrap();
+    let bytes = pdf::export(&list, &p.meta.title, model::APP_NAME).unwrap();
     assert!(bytes.starts_with(b"%PDF"));
 
     let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/test-output");

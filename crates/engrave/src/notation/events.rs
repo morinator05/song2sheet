@@ -52,19 +52,23 @@ impl<'a> Event<'a> {
             // 32nds need longer stems to fit three beams.
             let extra = value.beams().saturating_sub(2) as f32 * BEAM_STEP;
             if let Style::Tab(_) = style {
-                let base = style.height() + 0.6 * SP;
-                return Stem { x: x + head_w / 2.0, base, tip: base + 2.5 * SP + extra };
+                let base = style.height() + TAB_STEM_GAP;
+                return Stem { x: x + head_w / 2.0, base, tip: base + TAB_STEM_LEN + extra };
             }
             let top = heads.iter().map(|h| h.y).fold(f32::MAX, f32::min);
             let bottom = heads.iter().map(|h| h.y).fold(f32::MIN, f32::max);
             if up {
                 Stem {
                     x: x + head_w - STEM_W / 2.0,
-                    base: bottom - 0.17 * SP,
+                    base: bottom - STEM_HEAD_OVERLAP,
                     tip: top - STEM_LEN - extra,
                 }
             } else {
-                Stem { x: x + STEM_W / 2.0, base: top + 0.17 * SP, tip: bottom + STEM_LEN + extra }
+                Stem {
+                    x: x + STEM_W / 2.0,
+                    base: top + STEM_HEAD_OVERLAP,
+                    tip: bottom + STEM_LEN + extra,
+                }
             }
         });
         Self { beat, onset, x, up, heads, head_w, stem }
@@ -99,11 +103,11 @@ impl<'a> Event<'a> {
     fn draw_rest(&self, items: &mut Vec<Item>, rest_y: f32) {
         let glyph = rest_glyph(self.value());
         // The whole rest hangs from the line above the middle line.
-        let y = if self.value() == NoteValue::Whole { rest_y - SP } else { rest_y };
+        let y = if self.value() == NoteValue::Whole { rest_y - WHOLE_REST_RAISE } else { rest_y };
         items.push(music(self.x, y, glyph));
         for d in 0..self.beat.duration.dots {
-            let dx = self.x + glyph_w(glyph) + 0.4 * SP + d as f32 * 0.5 * SP;
-            items.push(music(dx, rest_y - SP / 2.0, AUG_DOT));
+            let dx = self.x + glyph_w(glyph) + DOT_GAP + d as f32 * DOT_STEP;
+            items.push(music(dx, rest_y - HALF_SPACE, AUG_DOT));
         }
     }
 
@@ -115,13 +119,13 @@ impl<'a> Event<'a> {
             let text = n.fret.to_string();
             let w = fonts::text_width(FontId::Regular, TAB_FRET_SIZE, &text);
             items.push(Item::Rect {
-                x: cx - w / 2.0 - 0.2,
-                y: y - TAB_FRET_SIZE * 0.4,
-                w: w + 0.4,
-                h: TAB_FRET_SIZE * 0.8,
+                x: cx - w / 2.0 - FRET_KNOCKOUT_PAD,
+                y: y - FRET_KNOCKOUT_H / 2.0,
+                w: w + 2.0 * FRET_KNOCKOUT_PAD,
+                h: FRET_KNOCKOUT_H,
                 shade: Shade::WHITE,
             });
-            let baseline = y + TAB_FRET_SIZE * 0.36;
+            let baseline = y + FRET_BASELINE_SHIFT;
             items.push(Item::Text {
                 x: cx - w / 2.0,
                 y: baseline,
@@ -139,11 +143,11 @@ impl<'a> Event<'a> {
             if style == Style::Percussion {
                 for ly in ledger_lines(y_pos(h.y)) {
                     items.push(line(
-                        hx - 0.4 * SP,
+                        hx - LEDGER_OVERHANG,
                         ly,
-                        hx + self.head_w + 0.4 * SP,
+                        hx + self.head_w + LEDGER_OVERHANG,
                         ly,
-                        LINE_W * 1.5,
+                        LEDGER_W,
                     ));
                 }
             }
@@ -161,17 +165,17 @@ impl<'a> Event<'a> {
             .map(|h| self.x + h.dx + self.head_w)
             .fold(self.x + self.head_w, f32::max);
         for d in 0..dots {
-            let step = d as f32 * 0.5 * SP;
+            let step = d as f32 * DOT_STEP;
             if self.heads.is_empty() {
                 // Tab: dot next to the stem.
                 if let Some(s) = self.stem {
-                    items.push(music(s.x + 0.5 * SP + step, s.base + 0.8 * SP, AUG_DOT));
+                    items.push(music(s.x + TAB_DOT_DX + step, s.base + TAB_DOT_DY, AUG_DOT));
                 }
             }
             for h in &self.heads {
                 // Dots sit in spaces: move up from a line.
-                let dy = if y_pos(h.y) % 2 == 0 { -SP / 2.0 } else { 0.0 };
-                items.push(music(right + 0.4 * SP + step, h.y + dy, AUG_DOT));
+                let dy = if y_pos(h.y) % 2 == 0 { -HALF_SPACE } else { 0.0 };
+                items.push(music(right + DOT_GAP + step, h.y + dy, AUG_DOT));
             }
         }
     }
@@ -196,13 +200,17 @@ impl<'a> Event<'a> {
         }
         let mut edge = self.stem.map(|s| s.tip).unwrap_or_else(|| {
             let ys = self.heads.iter().map(|h| h.y);
-            if self.up { ys.fold(0.0, f32::min) - SP } else { ys.fold(4.0 * SP, f32::max) + SP }
+            if self.up {
+                ys.fold(0.0, f32::min) - ARTIC_STEP
+            } else {
+                ys.fold(STAFF5_H, f32::max) + ARTIC_STEP
+            }
         });
         let placed = signs
             .into_iter()
             .map(|c| {
-                let y = if self.up { edge - 0.8 * SP } else { edge + 1.4 * SP };
-                edge = if self.up { y - SP } else { y + SP };
+                let y = if self.up { edge - ARTIC_GAP_ABOVE } else { edge + ARTIC_GAP_BELOW };
+                edge = if self.up { y - ARTIC_STEP } else { y + ARTIC_STEP };
                 (c, y)
             })
             .collect();
@@ -228,7 +236,7 @@ fn heads_for(beat: &Beat, style: Style) -> Vec<Head> {
                 NoteValue::Half => SLASH_HALF,
                 _ => SLASH_BLACK,
             };
-            vec![head(2.0 * SP, glyph)]
+            vec![head(STAFF5_H / 2.0, glyph)]
         }
         _ => Vec::new(),
     }
@@ -245,7 +253,7 @@ fn displace_seconds(heads: &mut [Head], head_w: f32, up: bool) {
     let mut prev: Option<(f32, bool)> = None;
     for h in heads {
         let collides =
-            prev.is_some_and(|(py, displaced)| !displaced && (h.y - py).abs() < SP * 0.6);
+            prev.is_some_and(|(py, displaced)| !displaced && (h.y - py).abs() < SECOND_MAX_DIST);
         if collides {
             h.dx = if up { head_w } else { -head_w };
         }
@@ -281,20 +289,21 @@ fn drum_head(hit: DrumHit, value: NoteValue) -> (i32, char) {
 
 /// y of a staff position (0 = bottom line of a 5-line staff, 8 = top line).
 fn pos_y(pos: i32) -> f32 {
-    (8 - pos) as f32 * SP / 2.0
+    (TOP_LINE_POS - pos) as f32 * HALF_SPACE
 }
 
 /// Inverse of [`pos_y`].
 fn y_pos(y: f32) -> i32 {
-    8 - (y / (SP / 2.0)).round() as i32
+    TOP_LINE_POS - (y / HALF_SPACE).round() as i32
 }
 
 /// y of the ledger lines needed for a head at `pos`.
 fn ledger_lines(pos: i32) -> Vec<f32> {
-    let positions: Vec<i32> = if pos >= 10 {
-        (10..=pos).step_by(2).collect()
-    } else if pos <= -2 {
-        (pos..=-2).filter(|p| p % 2 == 0).collect()
+    // Lines are on even positions.
+    let positions: Vec<i32> = if pos >= FIRST_LEDGER_ABOVE {
+        (FIRST_LEDGER_ABOVE..=pos).step_by(2).collect()
+    } else if pos <= FIRST_LEDGER_BELOW {
+        (pos..=FIRST_LEDGER_BELOW).filter(|p| p % 2 == 0).collect()
     } else {
         Vec::new()
     };

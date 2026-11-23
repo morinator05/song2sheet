@@ -85,7 +85,6 @@ fn draw_group(items: &mut Vec<Item>, evs: &[Event], group: &[usize]) {
 /// Horizontal extents of beam `level` (0 = outermost) across stems given as
 /// (x, beam count). A lone note gets a short stub pointing into the group.
 fn beam_segments(stems: &[(f32, u8)], level: u8) -> Vec<(f32, f32)> {
-    let stub = 1.2 * SP;
     let mut out = Vec::new();
     let mut i = 0;
     while i < stems.len() {
@@ -99,8 +98,8 @@ fn beam_segments(stems: &[(f32, u8)], level: u8) -> Vec<(f32, f32)> {
         }
         out.push(match (start == i, i + 1 == stems.len()) {
             (false, _) => (stems[start].0, stems[i].0),
-            (true, true) => (stems[i].0 - stub, stems[i].0),
-            (true, false) => (stems[i].0, stems[i].0 + stub),
+            (true, true) => (stems[i].0 - BEAM_STUB, stems[i].0),
+            (true, false) => (stems[i].0, stems[i].0 + BEAM_STUB),
         });
         i += 1;
     }
@@ -129,13 +128,13 @@ pub fn draw_tuplets(items: &mut Vec<Item>, evs: &[Event], group_ticks: u32) {
 }
 
 fn draw_tuplet_number(items: &mut Vec<Item>, group: &[Event], actual: u8) {
-    let size = MUSIC * 0.75;
+    let size = MUSIC * TUPLET_SCALE;
     let (first, last) = (&group[0], &group[group.len() - 1]);
     let edges = group.iter().map(|e| e.articulations().1);
     let y = if first.up {
-        edges.fold(0.0, f32::min) - 0.6 * SP
+        edges.fold(0.0, f32::min) - TUPLET_GAP_ABOVE
     } else {
-        edges.fold(4.0 * SP, f32::max) + 1.8 * SP
+        edges.fold(STAFF5_H, f32::max) + TUPLET_GAP_BELOW
     };
     let text = digits(TUPLET_0, actual as u32);
     let w = fonts::text_width(FontId::Music, size, &text);
@@ -242,7 +241,7 @@ mod tests {
         // Dotted 8th (1 beam) + 16th (2 beams): second level is a left stub.
         let stems = [(0.0, 1), (5.0, 2)];
         assert_eq!(beam_segments(&stems, 0), vec![(0.0, 5.0)]);
-        assert_eq!(beam_segments(&stems, 1), vec![(5.0 - 1.2 * SP, 5.0)]);
+        assert_eq!(beam_segments(&stems, 1), vec![(5.0 - BEAM_STUB, 5.0)]);
     }
 
     #[test]

@@ -40,6 +40,80 @@ pub const MAX_BAR_W: f32 = 55.0;
 pub const MIN_SCALE: f32 = 0.72;
 pub const CHORD_SIZE: f32 = 3.0;
 
+// --- Staff positions -------------------------------------------------
+// Positions count half spaces ("steps") up from the bottom line of a
+// 5-line staff: 0 = bottom line, 8 = top line.
+
+/// Height of a 5-line staff.
+pub const STAFF5_H: f32 = 4.0 * SP;
+/// One staff step: line to adjacent space.
+pub const HALF_SPACE: f32 = SP / 2.0;
+pub const TOP_LINE_POS: i32 = 8;
+pub const FIRST_LEDGER_ABOVE: i32 = 10;
+pub const FIRST_LEDGER_BELOW: i32 = -2;
+/// Ledger lines stick out this far on both sides of the notehead.
+pub const LEDGER_OVERHANG: f32 = 0.4 * SP;
+pub const LEDGER_W: f32 = LINE_W * 1.5;
+/// Heads closer than this (a second apart) are put on both stem sides.
+pub const SECOND_MAX_DIST: f32 = 0.6 * SP;
+
+// --- Stems, dots, rests --------------------------------------------------
+
+/// The stem starts this far inside the notehead.
+pub const STEM_HEAD_OVERLAP: f32 = 0.17 * SP;
+/// Tab rhythm stems: gap below the staff and length.
+pub const TAB_STEM_GAP: f32 = 0.6 * SP;
+pub const TAB_STEM_LEN: f32 = 2.5 * SP;
+/// Space between a notehead (or rest) and its first dot, and between dots.
+pub const DOT_GAP: f32 = 0.4 * SP;
+pub const DOT_STEP: f32 = 0.5 * SP;
+/// Dot position next to a tab stem (right of it, below its base).
+pub const TAB_DOT_DX: f32 = 0.5 * SP;
+pub const TAB_DOT_DY: f32 = 0.8 * SP;
+/// The whole rest hangs from the line above the middle line.
+pub const WHOLE_REST_RAISE: f32 = SP;
+/// With two voices, rests move up (voice 1) or down (voice 2).
+pub const REST_SHIFT_UP: f32 = SP;
+pub const REST_SHIFT_DOWN: f32 = 1.5 * SP;
+
+// --- Tab fret numbers ----------------------------------------------------
+
+/// White box behind fret numbers: horizontal padding and height.
+pub const FRET_KNOCKOUT_PAD: f32 = 0.2;
+pub const FRET_KNOCKOUT_H: f32 = TAB_FRET_SIZE * 0.8;
+/// Baseline offset that centres the digits on the string line.
+pub const FRET_BASELINE_SHIFT: f32 = TAB_FRET_SIZE * 0.36;
+
+// --- Articulations, beams, tuplets ---------------------------------------
+
+/// Gap between the stem tip and the first articulation, above or below.
+pub const ARTIC_GAP_ABOVE: f32 = 0.8 * SP;
+pub const ARTIC_GAP_BELOW: f32 = 1.4 * SP;
+/// Distance between stacked articulations, and from stemless heads.
+pub const ARTIC_STEP: f32 = SP;
+/// A beam segment of a lone short note (e.g. the 16th after a dotted 8th).
+pub const BEAM_STUB: f32 = 1.2 * SP;
+pub const TUPLET_SCALE: f32 = 0.75;
+pub const TUPLET_GAP_ABOVE: f32 = 0.6 * SP;
+pub const TUPLET_GAP_BELOW: f32 = 1.8 * SP;
+
+// --- Staff frame ---------------------------------------------------------
+
+pub const CLEF_X: f32 = 0.5 * SP;
+/// The 4-string tab clef is drawn smaller to fit the narrower staff.
+pub const TAB4_CLEF_SCALE: f32 = 0.8;
+/// Time signature digits sit one space above and below the middle.
+pub const TIME_DIGIT_OFFSET: f32 = SP;
+/// Gap between the time signature and an opening repeat sign.
+pub const REPEAT_GAP: f32 = 0.3 * SP;
+/// Repeat sign: offsets of the thin line and of the dots from the thick line.
+pub const REPEAT_THIN_X: f32 = 0.4 * SP;
+pub const REPEAT_DOT_X: f32 = 0.8 * SP;
+/// Clickable beat areas start this far left of the notehead.
+pub const BEAT_BOX_LEAD: f32 = 0.3 * SP;
+/// Gap below chord symbols and between neighbouring chord symbols.
+pub const CHORD_GAP: f32 = 1.0;
+
 /// How a staff is notated.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Style {
@@ -66,7 +140,7 @@ impl Style {
     pub fn height(self) -> f32 {
         match self {
             Style::Tab(strings) => strings.saturating_sub(1) as f32 * TAB_SP,
-            _ => 4.0 * SP,
+            _ => STAFF5_H,
         }
     }
 

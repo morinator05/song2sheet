@@ -1,17 +1,24 @@
 //! Left panel: song details and the pool of sections (segments).
 
 use eframe::egui;
-use model::{Bar, Project, Segment, SegmentId, SheetEntry, Staff, StaffKind};
+use model::{Project, Segment, SegmentId, SheetEntry};
 
-pub fn show(ui: &mut egui::Ui, project: &mut Project) {
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        ui.heading("Song");
-        song_details(ui, project);
-        ui.separator();
-        ui.heading("Sections");
-        ui.label("Click + to add a section to the sheet.");
-        section_pool(ui, project);
-    });
+use super::widgets::{
+    ICON_ADD, ICON_DELETE, ICON_DUPLICATE, ICON_EDIT, NAME_FIELD_W, TEMPO_LABEL, confirm,
+};
+
+/// Shows the panel. Returns a section the user wants to open in the editor.
+pub fn show(ui: &mut egui::Ui, project: &mut Project) -> Option<SegmentId> {
+    egui::ScrollArea::vertical()
+        .show(ui, |ui| {
+            ui.heading("Song");
+            song_details(ui, project);
+            ui.separator();
+            ui.heading("Sections");
+            ui.label(format!("{ICON_ADD} adds a section to the sheet, {ICON_EDIT} edits it."));
+            section_pool(ui, project)
+        })
+        .inner
 }
 
 fn song_details(ui: &mut egui::Ui, project: &mut Project) {
@@ -27,46 +34,35 @@ fn song_details(ui: &mut egui::Ui, project: &mut Project) {
             ui.text_edit_singleline(value);
             ui.end_row();
         }
-        ui.label("Tempo");
-        optional_bpm(ui, &mut meta.tempo);
+        ui.label(TEMPO_LABEL);
+        super::widgets::optional_bpm(ui, &mut meta.tempo);
         ui.end_row();
     });
     ui.label("Notes");
     ui.add(egui::TextEdit::multiline(&mut meta.notes).desired_rows(2).desired_width(f32::INFINITY));
 }
 
-/// Checkbox + BPM field for an optional tempo.
-fn optional_bpm(ui: &mut egui::Ui, tempo: &mut Option<u32>) {
-    ui.horizontal(|ui| {
-        let mut on = tempo.is_some();
-        if ui.checkbox(&mut on, "").changed() {
-            *tempo = on.then_some(120);
-        }
-        if let Some(bpm) = tempo {
-            ui.add(
-                egui::DragValue::new(bpm)
-                    .range(20..=400)
-                    .suffix(" bpm")
-                    .clamp_existing_to_range(false),
-            );
-        }
-    });
-}
-
-fn section_pool(ui: &mut egui::Ui, project: &mut Project) {
+fn section_pool(ui: &mut egui::Ui, project: &mut Project) -> Option<SegmentId> {
+    let mut edit: Option<SegmentId> = None;
     let mut add: Option<SegmentId> = None;
     let mut duplicate: Option<SegmentId> = None;
     let mut remove: Option<SegmentId> = None;
     for seg in &mut project.segments {
         ui.horizontal(|ui| {
-            if ui.button("+").on_hover_text("Add to sheet").clicked() {
+            if ui.button(ICON_ADD).on_hover_text("Add to sheet").clicked() {
                 add = Some(seg.id);
             }
-            ui.add(egui::TextEdit::singleline(&mut seg.name).desired_width(140.0));
-            if ui.small_button("⧉").on_hover_text("Duplicate as new section").clicked() {
+            ui.add(egui::TextEdit::singleline(&mut seg.name).desired_width(NAME_FIELD_W));
+            if ui.small_button(ICON_EDIT).on_hover_text("Edit notation").clicked() {
+                edit = Some(seg.id);
+            }
+            if ui.small_button(ICON_DUPLICATE).on_hover_text("Duplicate as new section").clicked() {
                 duplicate = Some(seg.id);
             }
-            if ui.small_button("🗑").on_hover_text("Delete section (and its sheet rows)").clicked()
+            if ui
+                .small_button(ICON_DELETE)
+                .on_hover_text("Delete section (and its sheet rows)")
+                .clicked()
             {
                 remove = Some(seg.id);
             }
@@ -88,11 +84,10 @@ fn section_pool(ui: &mut egui::Ui, project: &mut Project) {
     }
     confirm_delete(ui, project);
     if ui.button("New empty section").clicked() {
-        let mut staff = Staff::new(StaffKind::Drums);
-        staff.bars.push(Bar::default());
         let name = unused_name(project);
-        project.add_segment(Segment { name, staves: vec![staff], ..Default::default() });
+        edit = Some(project.add_segment(Segment { name, ..Default::default() }));
     }
+    edit
 }
 
 /// "Section N" with the smallest N not already taken.
@@ -119,19 +114,8 @@ fn confirm_delete(ui: &egui::Ui, project: &mut Project) {
     let Some(id) = ui.data(|d| d.get_temp::<Option<SegmentId>>(key)).flatten() else { return };
     let name = project.segment(id).map_or(String::new(), |s| s.name.clone());
     let rows = project.sheet.iter().filter(|e| e.segment == id).count();
-    let mut choice = None;
-    egui::Modal::new(key).show(ui.ctx(), |ui| {
-        ui.label(format!("Delete section \"{name}\" and its {rows} sheet row(s)?"));
-        ui.horizontal(|ui| {
-            if ui.button("Delete").clicked() {
-                choice = Some(true);
-            }
-            if ui.button("Cancel").clicked() {
-                choice = Some(false);
-            }
-        });
-    });
-    if let Some(delete) = choice {
+    let question = format!("Delete section \"{name}\" and its {rows} sheet row(s)?");
+    if let Some(delete) = confirm(ui.ctx(), key, &question, "Delete") {
         if delete {
             project.remove_segment(id);
         }

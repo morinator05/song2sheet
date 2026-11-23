@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::TICKS_PER_QUARTER;
+use crate::{TICKS_PER_QUARTER, TICKS_PER_WHOLE};
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(default)]
@@ -18,14 +18,32 @@ impl Default for TimeSig {
 }
 
 impl TimeSig {
+    /// Most beats per bar supported (and offered by the editor).
+    pub const MAX_NUM: u8 = 16;
+    /// Beat units supported (and offered by the editor). Other units can't
+    /// always be filled exactly with rests.
+    pub const DENOMINATORS: [u8; 4] = [2, 4, 8, 16];
+
+    pub fn is_supported(self) -> bool {
+        (1..=Self::MAX_NUM).contains(&self.num) && Self::DENOMINATORS.contains(&self.den)
+    }
+
+    /// The nearest supported time signature (4/4 for unknown units).
+    pub fn supported(self) -> TimeSig {
+        let num = self.num.clamp(1, Self::MAX_NUM);
+        let den =
+            if Self::DENOMINATORS.contains(&self.den) { self.den } else { Self::default().den };
+        TimeSig { num, den }
+    }
+
     pub fn bar_ticks(self) -> u32 {
-        TICKS_PER_QUARTER * 4 * self.num as u32 / self.den.max(1) as u32
+        TICKS_PER_WHOLE * self.num as u32 / self.den.max(1) as u32
     }
 
     /// Ticks of one beaming group: a dotted quarter in compound meters
     /// (3/8, 6/8, 9/8, 12/8), otherwise one beat.
     pub fn beam_group_ticks(self) -> u32 {
-        let beat = TICKS_PER_QUARTER * 4 / self.den.max(1) as u32;
+        let beat = TICKS_PER_WHOLE / self.den.max(1) as u32;
         if self.den == 8 && self.num.is_multiple_of(3) {
             beat * 3
         } else if self.den == 8 {
@@ -62,7 +80,7 @@ impl NoteValue {
 
     pub fn ticks(self) -> u32 {
         match self {
-            NoteValue::Whole => TICKS_PER_QUARTER * 4,
+            NoteValue::Whole => TICKS_PER_WHOLE,
             NoteValue::Half => TICKS_PER_QUARTER * 2,
             NoteValue::Quarter => TICKS_PER_QUARTER,
             NoteValue::Eighth => TICKS_PER_QUARTER / 2,

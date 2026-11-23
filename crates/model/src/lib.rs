@@ -6,6 +6,7 @@
 //! in the sheet many times (e.g. a verse played three times is stored once).
 
 mod drums;
+pub mod edit;
 mod project;
 mod rhythm;
 mod staff;
@@ -23,6 +24,15 @@ pub const FILE_EXTENSION: &str = "s2s.json";
 
 /// Ticks per quarter note. All durations are expressed in ticks.
 pub const TICKS_PER_QUARTER: u32 = 960;
+
+/// Ticks per whole note.
+pub const TICKS_PER_WHOLE: u32 = TICKS_PER_QUARTER * 4;
+
+/// Application name, used in window titles and as the PDF creator.
+pub const APP_NAME: &str = "song2sheet";
+
+/// Display name for a song without a title.
+pub const UNTITLED: &str = "Untitled";
 
 fn is_false(b: &bool) -> bool {
     !*b

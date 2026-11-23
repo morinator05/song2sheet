@@ -4,6 +4,15 @@
 use eframe::egui;
 use model::{PartComment, Project, SegmentId, SheetEntry, StaffKind};
 
+use super::widgets::{
+    ICON_ADD, ICON_DELETE, ICON_DUPLICATE, NAME_FIELD_W, SHEET_TITLE, SMALL_COMBO_W,
+};
+
+/// Largest repeat count offered for a row.
+const MAX_REPEAT: u32 = 32;
+/// Room kept right of a part comment field for its delete button.
+const DELETE_BUTTON_W: f32 = 30.0;
+
 enum RowAction {
     Move { from: usize, to: usize },
     Duplicate(usize),
@@ -11,9 +20,9 @@ enum RowAction {
 }
 
 pub fn show(ui: &mut egui::Ui, project: &mut Project) {
-    ui.heading("Sheet");
+    ui.heading(SHEET_TITLE);
     if project.sheet.is_empty() {
-        ui.label("Add sections from the left panel with +.");
+        ui.label(format!("Add sections from the left panel with {ICON_ADD}."));
         return;
     }
     let sections: Vec<(SegmentId, String)> =
@@ -75,7 +84,7 @@ fn row(
         ui.add(
             egui::TextEdit::singleline(&mut entry.label)
                 .hint_text(&section_name)
-                .desired_width(140.0),
+                .desired_width(NAME_FIELD_W),
         );
         egui::ComboBox::from_id_salt(("section", index)).selected_text(&section_name).show_ui(
             ui,
@@ -88,12 +97,14 @@ fn row(
         ui.label("×");
         // Don't rewrite out-of-range values from a file just by showing them.
         ui.add(
-            egui::DragValue::new(&mut entry.repeat).range(1..=32).clamp_existing_to_range(false),
+            egui::DragValue::new(&mut entry.repeat)
+                .range(1..=MAX_REPEAT)
+                .clamp_existing_to_range(false),
         );
-        if ui.small_button("⧉").on_hover_text("Duplicate row").clicked() {
+        if ui.small_button(ICON_DUPLICATE).on_hover_text("Duplicate row").clicked() {
             *action = Some(RowAction::Duplicate(index));
         }
-        if ui.small_button("🗑").on_hover_text("Remove row").clicked() {
+        if ui.small_button(ICON_DELETE).on_hover_text("Remove row").clicked() {
             *action = Some(RowAction::Remove(index));
         }
     });
@@ -112,16 +123,17 @@ fn part_comments(ui: &mut egui::Ui, index: usize, comments: &mut Vec<PartComment
         ui.horizontal(|ui| {
             egui::ComboBox::from_id_salt(("part", index, ci))
                 .selected_text(pc.kind.name())
-                .width(80.0)
+                .width(SMALL_COMBO_W)
                 .show_ui(ui, |ui| {
                     for kind in StaffKind::ALL {
                         ui.selectable_value(&mut pc.kind, kind, kind.name());
                     }
                 });
             ui.add(
-                egui::TextEdit::singleline(&mut pc.text).desired_width(ui.available_width() - 30.0),
+                egui::TextEdit::singleline(&mut pc.text)
+                    .desired_width(ui.available_width() - DELETE_BUTTON_W),
             );
-            if ui.small_button("🗑").clicked() {
+            if ui.small_button(ICON_DELETE).clicked() {
                 remove = Some(ci);
             }
         });
@@ -130,7 +142,7 @@ fn part_comments(ui: &mut egui::Ui, index: usize, comments: &mut Vec<PartComment
         comments.remove(ci);
     }
     if ui
-        .small_button("+ part note")
+        .small_button(format!("{ICON_ADD} part note"))
         .on_hover_text("Comment shown only on one part's sheet")
         .clicked()
     {

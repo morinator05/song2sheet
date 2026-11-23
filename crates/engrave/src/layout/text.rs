@@ -1,6 +1,6 @@
 //! Text helpers: item constructors, word wrapping, tempo marks.
 
-use model::Meta;
+use model::{Meta, UNTITLED};
 
 use crate::display::{Item, Shade};
 use crate::fonts::{self, FontId};
@@ -30,17 +30,22 @@ pub fn hrule(x0: f32, x1: f32, y: f32, width: f32, shade: Shade) -> Item {
 /// The song title, or a placeholder if none is set.
 pub fn display_title(meta: &Meta) -> &str {
     let t = meta.title.trim();
-    if t.is_empty() { "Untitled" } else { t }
+    if t.is_empty() { UNTITLED } else { t }
 }
+
+/// The note symbol of a tempo mark is drawn larger than the text, and
+/// separated from "= 120" by a small gap.
+const TEMPO_NOTE_SCALE: f32 = 1.5;
+const TEMPO_NOTE_GAP: f32 = 0.6;
 
 /// Tempo marking "♩ = 120" with its baseline at `y`.
 pub fn tempo_mark(x: f32, y: f32, bpm: u32, size: f32) -> Vec<Item> {
     let note = MET_QUARTER_UP.to_string();
-    let note_size = size * 1.5;
+    let note_size = size * TEMPO_NOTE_SCALE;
     let w = fonts::text_width(FontId::Music, note_size, &note);
     vec![
         text(x, y, note_size, FontId::Music, note),
-        text(x + w + 0.6, y, size, FontId::Regular, format!("= {bpm}")),
+        text(x + w + TEMPO_NOTE_GAP, y, size, FontId::Regular, format!("= {bpm}")),
     ]
 }
 

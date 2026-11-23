@@ -4,6 +4,8 @@
 use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions};
 use model::{PartFilter, Project};
 
+use crate::screens::widgets::{BLOCK_GAP, image_widths};
+
 #[derive(Default)]
 pub struct Preview {
     /// What the current textures were rendered from.
@@ -14,10 +16,7 @@ pub struct Preview {
 impl Preview {
     /// Shows all pages scaled to the available width.
     pub fn show(&mut self, ui: &mut egui::Ui, project: &Project, filter: PartFilter) {
-        // Render at physical pixel width, in 100 px steps to avoid
-        // re-rendering on every pixel of a resize.
-        let width = ui.available_width().max(100.0);
-        let px_width = ((width * ui.pixels_per_point()) / 100.0).ceil() * 100.0;
+        let (width, px_width) = image_widths(ui);
         let up_to_date = self
             .rendered
             .as_ref()
@@ -31,7 +30,7 @@ impl Preview {
                 let size = tex.size_vec2();
                 let scaled = egui::vec2(width, width * size.y / size.x);
                 ui.add(egui::Image::new((tex.id(), scaled)));
-                ui.add_space(8.0);
+                ui.add_space(BLOCK_GAP);
             }
         });
     }

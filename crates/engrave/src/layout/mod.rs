@@ -2,7 +2,10 @@
 
 mod header;
 mod row;
+mod segment;
 mod text;
+
+pub use segment::{SegmentView, layout_segment};
 
 use model::{PartFilter, Project};
 
@@ -20,6 +23,10 @@ const CONTENT_W: f32 = A4_WIDTH - 2.0 * MARGIN_X;
 /// Running header on pages 2+: title line, then the rule.
 const CONT_RULE_Y: f32 = MARGIN_TOP + 5.0;
 const CONT_BODY_Y: f32 = CONT_RULE_Y + 2.0;
+/// Rule under the header, and the thin rules between rows / under the
+/// running header.
+const HEADER_RULE_W: f32 = 0.35;
+const THIN_RULE_W: f32 = 0.2;
 
 /// Lays out the whole sheet on A4 pages. Rows are never split across
 /// pages; a row taller than a whole page (very unlikely for a song sheet)
@@ -48,7 +55,7 @@ pub fn layout_sheet(project: &Project, filter: PartFilter) -> DisplayList {
         }));
         y += row.height;
         rows_on_page += 1;
-        page.items.push(hrule(MARGIN_X, A4_WIDTH - MARGIN_X, y, 0.2, Shade::LIGHT));
+        page.items.push(hrule(MARGIN_X, A4_WIDTH - MARGIN_X, y, THIN_RULE_W, Shade::LIGHT));
     }
     number_pages(&mut pages);
     DisplayList { pages }
@@ -76,7 +83,7 @@ fn continuation_page(project: &Project) -> Page {
     let mut page = Page::a4();
     let title = display_title(&project.meta);
     page.items.push(text(MARGIN_X, MARGIN_TOP + INFO_SIZE, INFO_SIZE, FontId::Italic, title));
-    page.items.push(hrule(MARGIN_X, A4_WIDTH - MARGIN_X, CONT_RULE_Y, 0.2, Shade::BLACK));
+    page.items.push(hrule(MARGIN_X, A4_WIDTH - MARGIN_X, CONT_RULE_Y, THIN_RULE_W, Shade::BLACK));
     page
 }
 
@@ -118,7 +125,7 @@ mod tests {
         assert!(list.pages.len() >= 2);
         let total = list.pages.len();
         assert!(has_text(&list.pages[0], &format!("1 / {total}")));
-        assert!(has_text(&list.pages[1], "Untitled"), "continuation header");
+        assert!(has_text(&list.pages[1], model::UNTITLED), "continuation header");
     }
 
     #[test]

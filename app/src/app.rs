@@ -6,6 +6,20 @@ use model::{PartFilter, StaffKind};
 use crate::document::{Document, dialogs};
 use crate::preview::Preview;
 use crate::screens;
+use crate::screens::widgets::{EDITOR_TITLE, SHEET_TITLE, confirm};
+
+const SONG_PANEL_W: f32 = 300.0;
+const PREVIEW_PANEL_W: f32 = 560.0;
+const NEW: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::N);
+const OPEN: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::O);
+const SAVE: KeyboardShortcut = KeyboardShortcut::new(Modifiers::COMMAND, Key::S);
+
+/// What the central area shows.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Screen {
+    Sheet,
+    Editor,
+}
 
 /// File actions that may discard unsaved changes.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -17,6 +31,8 @@ enum Discarding {
 
 pub struct App {
     doc: Document,
+    screen: Screen,
+    editor: screens::editor::EditorState,
     preview: Preview,
     filter: PartFilter,
     /// Last error or confirmation, shown in the toolbar.
@@ -32,6 +48,8 @@ impl Default for App {
     fn default() -> Self {
         Self {
             doc: Document::new(),
+            screen: Screen::Sheet,
+            editor: Default::default(),
             preview: Preview::default(),
             filter: PartFilter::All,
             status: String::new(),
@@ -62,14 +80,20 @@ impl eframe::App for App {
         self.update_title(ui.ctx());
 
         egui::Panel::top("toolbar").show(ui, |ui| self.toolbar(ui));
-        egui::Panel::left("song").default_size(300.0).show(ui, |ui| {
-            screens::song_panel::show(ui, &mut self.doc.project);
-        });
-        egui::Panel::right("preview").default_size(560.0).show(ui, |ui| {
+        let edit = egui::Panel::left("song")
+            .default_size(SONG_PANEL_W)
+            .show(ui, |ui| screens::song_panel::show(ui, &mut self.doc.project))
+            .inner;
+        if let Some(id) = edit {
+            self.editor.open(&mut self.doc.project, id);
+            self.screen = Screen::Editor;
+        }
+        egui::Panel::right("preview").default_size(PREVIEW_PANEL_W).show(ui, |ui| {
             self.preview_panel(ui);
         });
-        egui::CentralPanel::default().show(ui, |ui| {
-            screens::arranger::show(ui, &mut self.doc.project);
+        egui::CentralPanel::default().show(ui, |ui| match self.screen {
+            Screen::Sheet => screens::arranger::show(ui, &mut self.doc.project),
+            Screen::Editor => screens::editor::show(ui, &mut self.doc.project, &mut self.editor),
         });
         self.confirm_dialog(ui.ctx());
     }
@@ -78,18 +102,21 @@ impl eframe::App for App {
 impl App {
     fn toolbar(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            if ui.button("New").on_hover_text("Ctrl+N").clicked() {
+            if ui.button("New").on_hover_text(ui.ctx().format_shortcut(&NEW)).clicked() {
                 self.request(ui.ctx(), Discarding::New);
             }
-            if ui.button("Open…").on_hover_text("Ctrl+O").clicked() {
+            if ui.button("Open…").on_hover_text(ui.ctx().format_shortcut(&OPEN)).clicked() {
                 self.request(ui.ctx(), Discarding::Open);
             }
-            if ui.button("Save").on_hover_text("Ctrl+S").clicked() {
+            if ui.button("Save").on_hover_text(ui.ctx().format_shortcut(&SAVE)).clicked() {
                 self.save(false);
             }
             if ui.button("Save as…").clicked() {
                 self.save(true);
             }
+            ui.separator();
+            ui.selectable_value(&mut self.screen, Screen::Sheet, SHEET_TITLE);
+            ui.selectable_value(&mut self.screen, Screen::Editor, EDITOR_TITLE);
             ui.separator();
             ui.label(&self.status);
         });
@@ -119,13 +146,8 @@ impl App {
     }
 
     fn handle_shortcuts(&mut self, ctx: &egui::Context) {
-        let shortcut = |key| KeyboardShortcut::new(Modifiers::COMMAND, key);
         let (new, open, save) = ctx.input_mut(|i| {
-            (
-                i.consume_shortcut(&shortcut(Key::N)),
-                i.consume_shortcut(&shortcut(Key::O)),
-                i.consume_shortcut(&shortcut(Key::S)),
-            )
+            (i.consume_shortcut(&NEW), i.consume_shortcut(&OPEN), i.consume_shortcut(&SAVE))
         });
         if new {
             self.request(ctx, Discarding::New);
@@ -171,6 +193,7 @@ impl App {
             }
             Discarding::New => {
                 self.doc = Document::new();
+                self.editor = Default::default();
                 self.status.clear();
             }
             Discarding::Open => {
@@ -178,6 +201,7 @@ impl App {
                 match Document::open(&path) {
                     Ok(doc) => {
                         self.doc = doc;
+                        self.editor = Default::default();
                         self.status = format!("Opened {}", path.display());
                     }
                     Err(e) => self.status = e,
@@ -188,19 +212,8 @@ impl App {
 
     fn confirm_dialog(&mut self, ctx: &egui::Context) {
         let Some(action) = self.confirm else { return };
-        let mut choice = None;
-        egui::Modal::new(egui::Id::unique("confirm_discard")).show(ctx, |ui| {
-            ui.label("Discard unsaved changes?");
-            ui.horizontal(|ui| {
-                if ui.button("Discard").clicked() {
-                    choice = Some(true);
-                }
-                if ui.button("Cancel").clicked() {
-                    choice = Some(false);
-                }
-            });
-        });
-        if let Some(discard) = choice {
+        let id = egui::Id::unique("confirm_discard");
+        if let Some(discard) = confirm(ctx, id, "Discard unsaved changes?", "Discard") {
             self.confirm = None;
             if discard {
                 self.run(ctx, action);

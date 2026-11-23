@@ -5,7 +5,7 @@ use model::{PartFilter, Project, Segment, SheetEntry, Staff};
 use super::text::{right_aligned, tempo_mark, text, wrap};
 use crate::display::Item;
 use crate::fonts::FontId;
-use crate::notation::{self, StaffLabel};
+use crate::notation::{self, BeatBox, StaffLabel};
 
 /// Width of the left column with section name, tempo and repeat count.
 const LEFT_COL: f32 = 30.0;
@@ -14,6 +14,16 @@ const STAFF_LABEL_W: f32 = 7.0;
 const ROW_PAD: f32 = 2.0;
 /// Space between the notation and the first comment line.
 const COMMENT_GAP: f32 = 1.0;
+/// Gap between the section name and the notation column.
+const LEFT_COL_GAP: f32 = 2.0;
+/// Space below the last line of the left column.
+const LEFT_COL_BOTTOM_PAD: f32 = 1.0;
+/// Notation starts this far below the row top.
+const NOTATION_TOP: f32 = ROW_PAD + 1.0;
+/// Gap between a staff label and its staff.
+const STAFF_LABEL_GAP: f32 = 1.5;
+/// Moves a label's baseline down so the text is centred on the staff.
+const STAFF_LABEL_CENTER_SHIFT: f32 = STAFF_LABEL_SIZE * 0.35;
 
 const LABEL_SIZE: f32 = 3.6;
 const LABEL_LINE_H: f32 = LABEL_SIZE * 1.2;
@@ -57,7 +67,9 @@ fn left_column(project: &Project, entry: &SheetEntry, seg: &Segment) -> (Vec<Ite
     let mut items = Vec::new();
     let label = if entry.label.trim().is_empty() { seg.name.trim() } else { entry.label.trim() };
     let mut y = ROW_PAD;
-    for (i, line) in wrap(label, FontId::Bold, LABEL_SIZE, LEFT_COL - 2.0).into_iter().enumerate() {
+    for (i, line) in
+        wrap(label, FontId::Bold, LABEL_SIZE, LEFT_COL - LEFT_COL_GAP).into_iter().enumerate()
+    {
         y += if i == 0 { LABEL_SIZE } else { LABEL_LINE_H };
         items.push(text(0.0, y, LABEL_SIZE, FontId::Bold, line));
     }
@@ -69,32 +81,58 @@ fn left_column(project: &Project, entry: &SheetEntry, seg: &Segment) -> (Vec<Ite
         y += REPEAT_LINE_H;
         items.push(text(0.0, y, TEMPO_SIZE, FontId::Bold, format!("×{}", entry.repeat)));
     }
-    (items, y + 1.0)
+    (items, y + LEFT_COL_BOTTOM_PAD)
 }
 
 /// The engraved staves shown by `filter`. Returns items and bottom y
 /// (0 if nothing is shown).
 fn notation(entry: &SheetEntry, seg: &Segment, filter: PartFilter, width: f32) -> (Vec<Item>, f32) {
     let staves: Vec<&Staff> = seg.staves.iter().filter(|s| filter.shows(s.kind)).collect();
-    let labelled = staves.len() > 1;
-    let x = LEFT_COL + if labelled { STAFF_LABEL_W } else { 0.0 };
-    let y = ROW_PAD + 1.0;
-    let block = notation::engrave_segment(seg, &staves, width - x, entry.repeat > 1);
-    let mut items = block.items;
-    items.iter_mut().for_each(|it| it.translate(x, y));
-    if labelled {
-        items.extend(staff_labels(&block.staff_labels, x - 1.5, y));
-    }
-    let bottom = if block.height > 0.0 { y + block.height } else { 0.0 };
-    (items, bottom)
+    let placed = place_notation(seg, &staves, entry.repeat > 1, LEFT_COL, NOTATION_TOP, width);
+    (placed.items, placed.bottom)
 }
+
+/// Engraved staves with their labels, positioned on the page.
+pub struct PlacedNotation {
+    pub items: Vec<Item>,
+    pub beats: Vec<BeatBox>,
+    /// Bottom y, or 0 if nothing was engraved.
+    pub bottom: f32,
+}
+
+/// Engraves `staves` between `left` and `right` with the top at `top`.
+/// With several staves, the first `STAFF_LABEL_W` holds their labels.
+pub fn place_notation(
+    seg: &Segment,
+    staves: &[&Staff],
+    repeat: bool,
+    left: f32,
+    top: f32,
+    right: f32,
+) -> PlacedNotation {
+    let labelled = staves.len() > 1;
+    let x = left + if labelled { STAFF_LABEL_W } else { 0.0 };
+    let block = notation::engrave_segment(seg, staves, right - x, repeat);
+    let mut items = block.items;
+    items.iter_mut().for_each(|it| it.translate(x, top));
+    if labelled {
+        items.extend(staff_labels(&block.staff_labels, x - STAFF_LABEL_GAP, top));
+    }
+    let mut beats = block.beats;
+    beats.iter_mut().for_each(|b| b.translate(x, top));
+    let bottom = if block.height > 0.0 { top + block.height } else { 0.0 };
+    PlacedNotation { items, beats, bottom }
+}
+
+/// Width available to a row's notation (labels included).
+pub const NOTATION_W: f32 = super::CONTENT_W - LEFT_COL;
 
 /// Small italic staff names, right-aligned at `right_x`.
 fn staff_labels(labels: &[StaffLabel], right_x: f32, dy: f32) -> Vec<Item> {
     labels
         .iter()
         .map(|l| {
-            let baseline = dy + l.y + STAFF_LABEL_SIZE * 0.35;
+            let baseline = dy + l.y + STAFF_LABEL_CENTER_SHIFT;
             right_aligned(right_x, baseline, STAFF_LABEL_SIZE, FontId::Italic, &l.text)
         })
         .collect()
