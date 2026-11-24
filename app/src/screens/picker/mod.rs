@@ -32,6 +32,8 @@ pub struct PickerState {
     message: String,
     /// `message` is an error.
     failed: bool,
+    /// A bar the keyboard just selected, to scroll into view.
+    reveal: Option<usize>,
 }
 
 /// The score cut into chunks for display, cached until the chosen parts or
@@ -158,12 +160,8 @@ pub fn show(
         return None;
     }
     let dialog_open = ui.ctx().memory(|m| m.top_modal_layer().is_some());
-    if state.selection.is_some()
-        && !dialog_open
-        && !ui.ctx().text_edit_focused()
-        && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
-    {
-        state.selection = None; // Esc clears the selection before leaving the screen
+    if !dialog_open && !ui.ctx().text_edit_focused() {
+        selection_keys(ui, state);
     }
     card(ui, |ui| parts(ui, state));
     ui.add_space(metrics::SPACE_S);
@@ -176,6 +174,34 @@ pub fn show(
         .show(ui, |ui| card(ui, |ui| selection_row(ui, project, state)));
     overview(ui, state);
     None
+}
+
+/// Left/Right move the selection by a bar, with Shift they extend it, and
+/// Esc clears it (before Esc leaves the screen).
+fn selection_keys(ui: &mut egui::Ui, state: &mut PickerState) {
+    let count = state.score.as_ref().map_or(0, |s| s.bars.len());
+    if count == 0 {
+        return;
+    }
+    let before = state.selection.clone();
+    let pressed = |ui: &mut egui::Ui, mods, key| ui.input_mut(|i| i.consume_key(mods, key));
+    for (key, by) in [(egui::Key::ArrowLeft, -1), (egui::Key::ArrowRight, 1)] {
+        if pressed(ui, egui::Modifiers::SHIFT, key) {
+            match &mut state.selection {
+                Some(s) => s.extend_by(by, count),
+                None => state.selection = Some(Selection::new(0)),
+            }
+        } else if pressed(ui, egui::Modifiers::NONE, key) {
+            state.selection =
+                Some(state.selection.as_ref().map_or(Selection::new(0), |s| s.moved_by(by, count)));
+        }
+    }
+    if state.selection != before {
+        state.reveal = state.selection.as_ref().map(|s| s.head());
+    }
+    if state.selection.is_some() && pressed(ui, egui::Modifiers::NONE, egui::Key::Escape) {
+        state.selection = None;
+    }
 }
 
 fn parts(ui: &mut egui::Ui, state: &mut PickerState) {
@@ -196,7 +222,7 @@ fn parts(ui: &mut egui::Ui, state: &mut PickerState) {
 
 fn selection_row(ui: &mut egui::Ui, project: &mut Project, state: &mut PickerState) {
     let (Some(score), Some(selection)) = (&state.score, &state.selection) else {
-        ui.label("Click a bar to start a section, Shift+click to extend it.");
+        ui.label("Click a bar to start a section, Shift+click to extend it (or use the arrow keys, with Shift to extend).");
         return;
     };
     let mut text = format!("{} selected.", bar_range_label(&score.bars, &selection.bars));
@@ -245,12 +271,22 @@ fn overview(ui: &mut egui::Ui, state: &mut PickerState) {
     let parts = state.chosen_parts();
     state.overview.refresh(score, parts);
     let mut clicked = None;
+    let reveal = std::mem::take(&mut state.reveal).and_then(|bar| {
+        state.overview.chunks.iter().find(|(c, _, _)| c.contains(&bar)).map(|(c, _, _)| c.start)
+    });
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
         for (chunk, seg, view) in &mut state.overview.chunks {
             caption(ui, bar_range_label(&score.bars, chunk));
             let selected = state.selection.as_ref().map(|s| s.within(chunk)).unwrap_or_default();
+            let top = ui.cursor().top();
             if let Some(b) = view.show(ui, seg, Highlight::Bars(&selected)) {
                 clicked = Some(chunk.start + b.bar);
+            }
+            // After a keyboard move, scroll to the chunk with the moved end.
+            if reveal == Some(chunk.start) {
+                let rect =
+                    egui::Rect::from_x_y_ranges(ui.max_rect().x_range(), top..=ui.cursor().top());
+                ui.scroll_to_rect(rect, None);
             }
         }
     });

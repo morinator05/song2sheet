@@ -79,7 +79,7 @@ pub fn show(ui: &mut egui::Ui, seg: &Segment, cursor: &Cursor) -> Option<Command
             ui.separator();
             group_label(ui, "Drums");
             for (key, hit) in DRUM_KEYS {
-                let on = beat.drums.contains(&hit);
+                let on = super::drums::has_hit(seg, cursor, hit);
                 button(ui, Some(on), hit.name(), &key_hint(key), Some(Command::Drum(hit)));
             }
         });
@@ -126,6 +126,10 @@ pub fn legend(ctx: &egui::Context) -> Vec<String> {
             super::commands::MAX_FRET,
             key_label(keys::SLASH),
         ),
-        format!("Drums: {} hands/feet voice · {}", key_label(keys::VOICE), drums.join(" · ")),
+        format!(
+            "Drums: {} hands/feet voice (kick and hi-hat pedal always go to the feet) · {}",
+            key_label(keys::VOICE),
+            drums.join(" · ")
+        ),
     ]
 }

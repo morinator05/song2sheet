@@ -7,8 +7,8 @@ use model::{PartComment, Project, SegmentId, SheetEntry};
 use super::Nav;
 use super::song_panel::new_section;
 use super::widgets::{
-    BLOCK_GAP, Icon, NAME_FIELD_W, SHEET_TITLE, caption, card_frame, combo, count, danger, ghost,
-    header, icon_button, icons, staff_kind_options,
+    BLOCK_GAP, Icon, NAME_FIELD_W, SHEET_TITLE, caption, card_frame, clickable, combo, count,
+    danger, ghost, header, icon_button, icons, staff_kind_options,
 };
 use crate::theme::{self, metrics};
 
@@ -28,7 +28,10 @@ enum RowAction {
 pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -> Option<Nav> {
     let rows = project.sheet.len();
     header(ui, SHEET_TITLE, |ui| {
-        caption(ui, format!("{} · drag a row by its handle to reorder", count(rows, "row")));
+        caption(
+            ui,
+            format!("{} · drag the handle to reorder · double-click to edit", count(rows, "row")),
+        );
     });
     if project.sheet.is_empty() {
         return empty_state(ui, project);
@@ -46,7 +49,12 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -
             } else if dragging == Some(i) {
                 frame = frame.fill(theme::mix(p.card, p.accent, DRAG_TINT));
             }
-            let response = frame.show(ui, |ui| row(ui, i, entry, &sections, &mut action)).response;
+            let response =
+                clickable(ui, |ui| frame.show(ui, |ui| row(ui, i, entry, &sections, &mut action)))
+                    .response;
+            if response.double_clicked() {
+                action = Some(RowAction::Edit(entry.segment));
+            }
             if let Some(from) = response.dnd_hover_payload::<usize>() {
                 // The dropped row takes this row's place: show where it lands.
                 let r = response.rect;

@@ -84,7 +84,12 @@ pub fn apply(
         Value(_) | ToggleDot | ToggleTriplet | Longer | Shorter => {
             result = change_duration(cmd, seg, cursor, input)
         }
-        Drum(hit) => toggle_drum(seg, cursor, hit),
+        Drum(hit) => {
+            // On drum staves each hit goes to its own voice (hands or feet).
+            let drums = seg.staves.get(cursor.staff).is_some_and(|s| s.kind == StaffKind::Drums);
+            let at = if drums { super::drums::target(seg, cursor, hit) } else { None };
+            toggle_drum(seg, &at.unwrap_or(*cursor), hit)
+        }
         Slash => edit_beat(seg, cursor, |b| b.slash = !b.slash),
         FretDigit(d) => type_fret(seg, cursor, input, d, now),
         Clear => clear(seg, cursor),

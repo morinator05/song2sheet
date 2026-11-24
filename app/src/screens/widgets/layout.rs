@@ -25,6 +25,12 @@ pub fn card<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> Inner
     })
 }
 
+/// `add`'s contents with clicks on their background reported (widgets
+/// inside still get their own clicks), e.g. double-click to open.
+pub fn clickable<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> InnerResponse<R> {
+    ui.scope_builder(egui::UiBuilder::new().sense(egui::Sense::click()), add)
+}
+
 /// [`card`]'s frame, e.g. to change its fill for a highlighted card.
 pub fn card_frame(p: &theme::Palette) -> Frame {
     Frame::new()

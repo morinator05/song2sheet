@@ -5,8 +5,8 @@ use model::{Project, Segment, SegmentId, SheetEntry};
 
 use super::Nav;
 use super::widgets::{
-    BLOCK_GAP, Icon, TEMPO_LABEL, caption, card, card_frame, confirm, count, danger, ghost, header,
-    icon_button, optional_bpm,
+    BLOCK_GAP, Icon, TEMPO_LABEL, caption, card, card_frame, clickable, confirm, count, danger,
+    ghost, header, icon_button, optional_bpm,
 };
 use crate::theme;
 
@@ -89,32 +89,37 @@ fn section_pool(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId
                 .fill(theme::mix(p.card, p.accent, theme::OPEN_TINT))
                 .stroke((theme::metrics::HAIRLINE, p.accent));
         }
-        frame.show(ui, |ui| {
-            // One row: tools from the right, the name field takes the rest.
-            let size = egui::vec2(ui.available_width(), ui.spacing().interact_size.y);
-            let layout = egui::Layout::right_to_left(egui::Align::Center);
-            ui.allocate_ui_with_layout(size, layout, |ui| {
-                if danger(ui, Icon::Delete, "Delete section (and its sheet rows)").clicked() {
-                    remove = Some(seg.id);
-                }
-                if ghost(ui, Icon::Duplicate, "Duplicate as a new section").clicked() {
-                    duplicate = Some(seg.id);
-                }
-                if ghost(ui, Icon::AddToSheet, "Add to the end of the sheet").clicked() {
-                    add = Some(seg.id);
-                }
-                if ghost(ui, Icon::Edit, "Edit notation").clicked() {
-                    nav = Some(Nav::Edit(seg.id));
-                }
-                let used = match uses {
-                    0 => "unused".to_string(),
-                    n => format!("×{n}"),
-                };
-                caption(ui, used).on_hover_text("How often the sheet uses this section");
-                let name = egui::TextEdit::singleline(&mut seg.name).hint_text("Name");
-                ui.add(name.desired_width(ui.available_width()));
-            });
+        let row = clickable(ui, |ui| {
+            frame.show(ui, |ui| {
+                // One row: tools from the right, the name field takes the rest.
+                let size = egui::vec2(ui.available_width(), ui.spacing().interact_size.y);
+                let layout = egui::Layout::right_to_left(egui::Align::Center);
+                ui.allocate_ui_with_layout(size, layout, |ui| {
+                    if danger(ui, Icon::Delete, "Delete section (and its sheet rows)").clicked() {
+                        remove = Some(seg.id);
+                    }
+                    if ghost(ui, Icon::Duplicate, "Duplicate as a new section").clicked() {
+                        duplicate = Some(seg.id);
+                    }
+                    if ghost(ui, Icon::AddToSheet, "Add to the end of the sheet").clicked() {
+                        add = Some(seg.id);
+                    }
+                    if ghost(ui, Icon::Edit, "Edit notation").clicked() {
+                        nav = Some(Nav::Edit(seg.id));
+                    }
+                    let used = match uses {
+                        0 => "unused".to_string(),
+                        n => format!("×{n}"),
+                    };
+                    caption(ui, used).on_hover_text("How often the sheet uses this section");
+                    let name = egui::TextEdit::singleline(&mut seg.name).hint_text("Name");
+                    ui.add(name.desired_width(ui.available_width()));
+                });
+            })
         });
+        if row.response.on_hover_text("Double-click to edit").double_clicked() {
+            nav = Some(Nav::Edit(seg.id));
+        }
     }
     if let Some(id) = add {
         project.sheet.push(SheetEntry::new(id));

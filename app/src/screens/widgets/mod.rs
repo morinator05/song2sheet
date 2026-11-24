@@ -11,7 +11,7 @@ pub use buttons::{
     combo, danger, ghost, icon_button, menu, primary, primary_enabled, secondary, toggle,
 };
 pub use icons::Icon;
-pub use layout::{caption, card, card_frame, group_label, header};
+pub use layout::{caption, card, card_frame, clickable, group_label, header};
 
 /// Width of single-line name fields (sections, sheet row labels).
 pub const NAME_FIELD_W: f32 = 160.0;

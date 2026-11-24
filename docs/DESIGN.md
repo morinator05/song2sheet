@@ -61,3 +61,5 @@ Colours come from KDE Plasma's `kdeglobals`: the window, view, button and select
 - The editor's keys are in `screens/editor/keys.rs`, the single source for its tooltips and legend.
 - Esc cancels a dialog, clears the import selection, cancels the chord field and goes back to the sheet. Enter confirms a dialog. On the Import screen, Enter in the Name field creates the section.
 - While a text field has focus, Ctrl+Z belongs to the field.
+- On the Import screen, Left/Right move the bar selection and Shift+Left/Right extend it, scrolling it into view.
+- Double-clicking the background of a sheet row or a Sections row opens that section in the editor.

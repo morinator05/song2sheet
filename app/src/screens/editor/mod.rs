@@ -3,6 +3,7 @@
 
 mod commands;
 mod cursor;
+mod drums;
 mod header;
 mod keys;
 mod toolbar;
