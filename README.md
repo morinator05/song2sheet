@@ -13,6 +13,15 @@ cargo run --release -p song2sheet song.s2s.json  # start with a song open
 
 Song files are saved as `*.s2s.json`, a small text file you can share or put under version control.
 
+### Add it to the app menu (Linux)
+
+The window shows the music note icon of your icon theme (Breeze's `audio-x-generic`). On Wayland, Plasma takes the taskbar icon from a desktop entry, so install the app and its entry once:
+
+```sh
+cargo install --path app
+cp assets/song2sheet.desktop ~/.local/share/applications/
+```
+
 ## How to make a sheet
 
 1. **Import** (optional): export your song from MuseScore (*File → Export → MusicXML*) or Guitar Pro (*File → Export → MusicXML*). Open it on the **Import** tab, tick the parts you want, click a bar and Shift+click another to select a section, give it a name, then click **Create section**.

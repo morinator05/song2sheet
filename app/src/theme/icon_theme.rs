@@ -32,13 +32,24 @@ pub fn theme_name(ini: Option<&Ini>) -> String {
     ini.and_then(|i| i.get(ICONS_GROUP, THEME_KEY)).unwrap_or(FALLBACK_THEME).to_string()
 }
 
+/// The app's own icon in the icon theme: Breeze's default music note
+/// (the generic audio file icon), drawn in its own colours.
+const APP_ICON: &str = "audio-x-generic";
+/// Sizes looked at for the app icon (largest first) and its pixel size.
+const APP_ICON_SIZES: [&str; 3] = ["64", "48", "32"];
+const APP_ICON_PX: u32 = 64;
+
 /// The SVG file of icon `name`, if the theme (or Breeze) has it.
 pub fn find(theme: &str, name: &str) -> Option<PathBuf> {
+    find_sized(theme, name, &SIZES)
+}
+
+fn find_sized(theme: &str, name: &str, sizes: &[&str]) -> Option<PathBuf> {
     let file = format!("{name}.svg");
     let themes = [theme, FALLBACK_THEME];
     themes.iter().flat_map(|t| icon_dirs().into_iter().map(move |d| d.join(t))).find_map(|root| {
         CONTEXTS.iter().find_map(|ctx| {
-            SIZES.iter().map(|s| root.join(ctx).join(s).join(&file)).find(|p| p.is_file())
+            sizes.iter().map(|s| root.join(ctx).join(s).join(&file)).find(|p| p.is_file())
         })
     })
 }
@@ -77,17 +88,39 @@ fn whiten(svg: &str) -> String {
     out
 }
 
-/// Loads `path` as a white texture `px` pixels square.
-pub fn load(ctx: &egui::Context, path: &std::path::Path, px: u32) -> Option<TextureHandle> {
-    let svg = whiten(&std::fs::read_to_string(path).ok()?);
-    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).ok()?;
+/// `svg` drawn `px` pixels square.
+fn render(svg: &str, px: u32) -> Option<tiny_skia::Pixmap> {
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).ok()?;
     let mut pixmap = tiny_skia::Pixmap::new(px, px)?;
     let size = tree.size();
     let scale =
         tiny_skia::Transform::from_scale(px as f32 / size.width(), px as f32 / size.height());
     resvg::render(&tree, scale, &mut pixmap.as_mut());
+    Some(pixmap)
+}
+
+/// Loads `path` as a white texture `px` pixels square.
+pub fn load(ctx: &egui::Context, path: &std::path::Path, px: u32) -> Option<TextureHandle> {
+    let pixmap = render(&whiten(&std::fs::read_to_string(path).ok()?), px)?;
     let image = ColorImage::from_rgba_premultiplied([px as usize, px as usize], pixmap.data());
     Some(ctx.load_texture(path.to_string_lossy(), image, TextureOptions::LINEAR))
+}
+
+/// The window icon: [`APP_ICON`] from the configured icon theme (or
+/// Breeze), if installed.
+pub fn app_icon() -> Option<egui::IconData> {
+    let theme = theme_name(config().as_ref());
+    let path = find_sized(&theme, APP_ICON, &APP_ICON_SIZES)?;
+    let pixmap = render(&std::fs::read_to_string(path).ok()?, APP_ICON_PX)?;
+    let rgba = pixmap
+        .pixels()
+        .iter()
+        .flat_map(|p| {
+            let c = p.demultiply();
+            [c.red(), c.green(), c.blue(), c.alpha()]
+        })
+        .collect();
+    Some(egui::IconData { rgba, width: APP_ICON_PX, height: APP_ICON_PX })
 }
 
 /// The parsed `kdeglobals`, if there is one.
@@ -105,6 +138,16 @@ mod tests {
         let svg = ".ColorScheme-Text { color:#232629; } .x { color:#da4453 }";
         assert_eq!(whiten(svg), ".ColorScheme-Text { color:#ffffff; } .x { color:#ffffff }");
         assert_eq!(whiten("color:#abc;"), "color:#abc;", "short colours are left alone");
+    }
+
+    #[test]
+    fn app_icon_renders_where_breeze_is_installed() {
+        if find_sized(FALLBACK_THEME, APP_ICON, &APP_ICON_SIZES).is_none() {
+            return; // no Breeze here (e.g. CI): nothing to check
+        }
+        let icon = app_icon().expect("Breeze has the icon");
+        assert_eq!(icon.rgba.len(), (APP_ICON_PX * APP_ICON_PX * 4) as usize);
+        assert!(icon.rgba.chunks(4).any(|p| p[3] > 0), "the icon is not blank");
     }
 
     #[test]

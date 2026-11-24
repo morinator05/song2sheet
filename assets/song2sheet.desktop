@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=song2sheet
+GenericName=Song sheet editor
+Comment=Make compact band song sheets
+Exec=song2sheet %f
+Icon=audio-x-generic
+Terminal=false
+Categories=AudioVideo;Audio;
+StartupWMClass=song2sheet
