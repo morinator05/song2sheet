@@ -3,20 +3,25 @@
 
 mod commands;
 mod cursor;
+mod header;
 mod keys;
 mod toolbar;
 
 use eframe::egui;
-use model::{Project, Segment, SegmentId, StaffKind, TimeSig, edit};
+use model::{Project, Segment, SegmentId, StaffKind, edit};
 
+use super::Nav;
 use super::notation_view::{Highlight, NotationView};
 use super::widgets::{
-    BLOCK_GAP, EDITOR_TITLE, ICON_ADD, ICON_DELETE, ICON_EDIT, ICON_REMOVE, NAME_FIELD_W,
-    SHORT_FIELD_W, SMALL_COMBO_W, TEMPO_LABEL, optional_bpm,
+    BLOCK_GAP, EDITOR_TITLE, SHEET_TITLE, SHORT_FIELD_W, caption, card, header, icons, secondary,
 };
+use crate::theme;
 use commands::{Command, Input};
 pub use cursor::Cursor;
 use keys::Action;
+
+/// Widest the keyboard legend popup gets before wrapping.
+const LEGEND_MAX_W: f32 = 560.0;
 
 #[derive(Default)]
 pub struct EditorState {
@@ -40,15 +45,30 @@ pub struct EditorState {
 impl EditorState {
     /// Starts editing `id`, making it editable if needed.
     pub fn open(&mut self, project: &mut Project, id: SegmentId) {
-        if let Some(seg) = project.segment_mut(id) {
-            if seg.staves.is_empty() {
-                commands::add_staff(seg, StaffKind::Drums);
-            }
-            edit::normalize(seg);
-        }
         self.segment = Some(id);
         self.cursor = Cursor::default();
         self.message = None;
+        self.refresh(project);
+    }
+
+    /// The section being edited.
+    pub fn segment(&self) -> Option<SegmentId> {
+        self.segment
+    }
+
+    /// Makes the section editable again after the project was replaced
+    /// (undo), keeping the cursor where possible.
+    pub fn refresh(&mut self, project: &mut Project) {
+        let Some(seg) = self.segment.and_then(|id| project.segment_mut(id)) else {
+            self.segment = None;
+            return;
+        };
+        if seg.staves.is_empty() {
+            commands::add_staff(seg, StaffKind::Drums);
+        }
+        edit::normalize(seg);
+        self.cursor.clamp(seg);
+        self.chord_was_editing = false;
     }
 
     fn apply(&mut self, cmd: Command, seg: &mut Segment, now: f64) {
@@ -57,107 +77,50 @@ impl EditorState {
     }
 }
 
-pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut EditorState) {
+pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut EditorState) -> Option<Nav> {
     let Some(seg) = state.segment.and_then(|id| project.segment_mut(id)) else {
-        ui.heading(EDITOR_TITLE);
-        ui.label(format!("Choose a section to edit with {ICON_EDIT} in the left panel."));
-        return;
+        header(ui, EDITOR_TITLE, |_| {});
+        caption(ui, format!("Choose a section to edit with {} in the Sections list.", icons::EDIT));
+        return None;
     };
     state.cursor.clamp(seg);
-    egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
-        section_header(ui, seg);
-        ui.separator();
-        staves(ui, seg, &mut state.cursor);
-        ui.separator();
-        if let Some(cmd) = toolbar::show(ui, seg, &state.cursor) {
-            state.apply(cmd, seg, ui.input(|i| i.time));
-        }
-        if let Some(b) = state.view.show(ui, seg, Highlight::Cursor(&state.cursor)) {
-            state.cursor =
-                Cursor { staff: b.staff, bar: b.bar, voice: b.voice, beat: b.beat, ..state.cursor };
-        }
-        beat_details(ui, seg, state);
-        ui.add_space(BLOCK_GAP);
-        egui::CollapsingHeader::new("Keyboard shortcuts").show(ui, |ui| {
+    let title = if seg.name.trim().is_empty() {
+        EDITOR_TITLE.to_string()
+    } else {
+        format!("{EDITOR_TITLE} · {}", seg.name.trim())
+    };
+    let back = header(ui, &title, |ui| {
+        ui.menu_button(icons::with(icons::KEYBOARD, "Shortcuts"), |ui| {
+            ui.set_max_width(LEGEND_MAX_W);
             for line in toolbar::legend(ui.ctx()) {
                 ui.label(line);
             }
         });
+        let back = format!("Back to the sheet ({})", crate::shortcuts::BACK.name());
+        secondary(ui, &icons::with(icons::BACK, SHEET_TITLE)).on_hover_text(back).clicked()
     });
-    handle_keys(ui, seg, state);
-}
-
-fn section_header(ui: &mut egui::Ui, seg: &mut Segment) {
-    ui.horizontal(|ui| {
-        ui.label("Section");
-        ui.add(egui::TextEdit::singleline(&mut seg.name).desired_width(NAME_FIELD_W));
-        ui.label(TEMPO_LABEL);
-        optional_bpm(ui, &mut seg.tempo);
-    });
-    ui.horizontal(|ui| {
-        // Combo boxes, not drag values: every change is applied at once and
-        // cuts bars, so intermediate values while dragging would lose notes.
-        ui.label("Time");
-        let mut ts = seg.time_sig;
-        let combo = |ui: &mut egui::Ui, id: &str, value: &mut u8, options: &[u8]| {
-            egui::ComboBox::from_id_salt(id)
-                .selected_text(value.to_string())
-                .width(SMALL_COMBO_W)
-                .show_ui(ui, |ui| {
-                    for &o in options {
-                        ui.selectable_value(value, o, o.to_string());
-                    }
-                });
-        };
-        let numerators: Vec<u8> = (1..=TimeSig::MAX_NUM).collect();
-        combo(ui, "time_num", &mut ts.num, &numerators);
-        ui.label("/");
-        combo(ui, "time_den", &mut ts.den, &TimeSig::DENOMINATORS);
-        if ts != seg.time_sig {
-            commands::set_time_sig(seg, ts);
-        }
-        ui.separator();
-        ui.label(format!("Bars: {}", seg.bar_count()));
-        if ui.small_button(ICON_ADD).on_hover_text("Add a bar").clicked() {
-            commands::add_bar(seg);
-        }
-        if ui.small_button(ICON_REMOVE).on_hover_text("Remove the last bar").clicked() {
-            commands::remove_last_bar(seg);
-        }
-    });
-}
-
-fn staves(ui: &mut egui::Ui, seg: &mut Segment, cursor: &mut Cursor) {
-    let mut remove = None;
-    for (i, staff) in seg.staves.iter_mut().enumerate() {
-        ui.horizontal(|ui| {
-            if ui
-                .selectable_label(cursor.staff == i, staff.kind.name())
-                .on_hover_text("Edit this staff")
-                .clicked()
-            {
-                cursor.staff = i;
-                cursor.voice = 0;
-            }
-            let label =
-                egui::TextEdit::singleline(&mut staff.label).hint_text(staff.kind.short_name());
-            ui.add(label.desired_width(SHORT_FIELD_W));
-            if ui.small_button(ICON_DELETE).on_hover_text("Remove staff").clicked() {
-                remove = Some(i);
+    egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
+        card(ui, |ui| {
+            header::section_settings(ui, seg);
+            ui.separator();
+            header::staves(ui, seg, &mut state.cursor);
+        });
+        ui.add_space(BLOCK_GAP);
+        card(ui, |ui| {
+            if let Some(cmd) = toolbar::show(ui, seg, &state.cursor) {
+                state.apply(cmd, seg, ui.input(|i| i.time));
             }
         });
-    }
-    if let Some(i) = remove {
-        commands::remove_staff(seg, cursor, i);
-    }
-    ui.horizontal(|ui| {
-        ui.label("Add staff:");
-        for kind in StaffKind::ALL {
-            if ui.small_button(kind.name()).clicked() {
-                commands::add_staff(seg, kind);
-            }
+        ui.add_space(BLOCK_GAP);
+        if let Some(b) = state.view.show(ui, seg, Highlight::Cursor(&state.cursor)) {
+            state.cursor =
+                Cursor { staff: b.staff, bar: b.bar, voice: b.voice, beat: b.beat, ..state.cursor };
         }
+        ui.add_space(BLOCK_GAP);
+        beat_details(ui, seg, state);
     });
+    handle_keys(ui, seg, state);
+    back.then_some(Nav::Sheet)
 }
 
 /// Position of the selected beat, its chord symbol field and the last
@@ -171,8 +134,9 @@ fn beat_details(ui: &mut egui::Ui, seg: &mut Segment, state: &mut EditorState) {
         state.chord_target = c;
     }
     let mut done = false;
+    let warn = theme::palette(ui.ctx()).warn;
     ui.horizontal(|ui| {
-        ui.label(format!("Bar {}, beat {} · voice {}", c.bar + 1, c.beat + 1, c.voice + 1));
+        caption(ui, format!("Bar {} · beat {} · voice {}", c.bar + 1, c.beat + 1, c.voice + 1));
         ui.separator();
         ui.label("Chord");
         let hint = ui.ctx().format_shortcut(&keys::CHORD_SYMBOL);
@@ -184,10 +148,12 @@ fn beat_details(ui: &mut egui::Ui, seg: &mut Segment, state: &mut EditorState) {
         done = state.chord_was_editing && !field.has_focus();
         state.chord_was_editing = field.has_focus();
         if let Some(message) = &state.message {
-            ui.colored_label(ui.visuals().warn_fg_color, message);
+            ui.colored_label(warn, icons::with(icons::WARNING, message));
         }
     });
-    if done {
+    // Esc leaves the field without keeping the typed text.
+    let cancelled = ui.input(|i| i.key_pressed(egui::Key::Escape));
+    if done && !cancelled {
         if let Some(beat) = state.chord_target.beat_mut(seg) {
             beat.chord = Some(state.chord_text.trim().to_string()).filter(|t| !t.is_empty());
         }

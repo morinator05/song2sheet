@@ -6,3 +6,14 @@ mod notation_view;
 pub mod picker;
 pub mod song_panel;
 pub mod widgets;
+
+use model::SegmentId;
+
+/// Where a screen asks the app to go next.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Nav {
+    /// Open this section in the editor.
+    Edit(SegmentId),
+    Import,
+    Sheet,
+}

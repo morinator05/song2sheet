@@ -7,6 +7,7 @@ use model::{Segment, StaffKind};
 use super::commands::Command;
 use super::cursor::Cursor;
 use super::keys::{self, DRUM_KEYS, DURATION_KEYS, is_fretted, key_label};
+use crate::screens::widgets::{group_label, secondary, toggle};
 
 /// Shows the toolbar; returns the command of a clicked button.
 pub fn show(ui: &mut egui::Ui, seg: &Segment, cursor: &Cursor) -> Option<Command> {
@@ -18,52 +19,68 @@ pub fn show(ui: &mut egui::Ui, seg: &Segment, cursor: &Cursor) -> Option<Command
     let ctx = ui.ctx().clone();
     let shortcut_hint = |s| ctx.format_shortcut(&s);
     let mut clicked = None;
-    let mut button = |ui: &mut egui::Ui, selected: bool, text: &str, hint: &str, cmd: Command| {
-        if ui.selectable_label(selected, text).on_hover_text(hint).clicked() {
-            clicked = Some(cmd);
-        }
-    };
+    // A toggle shows its state; an action (`on == None`) is a plain button.
+    // `cmd` is `None` for a button that does nothing when clicked.
+    let mut button =
+        |ui: &mut egui::Ui, on: Option<bool>, text: &str, hint: &str, cmd: Option<Command>| {
+            let r = match on {
+                Some(on) => toggle(ui, on, text),
+                None => secondary(ui, text),
+            };
+            if r.on_hover_text(hint).clicked() {
+                clicked = cmd.or(clicked);
+            }
+        };
     ui.horizontal_wrapped(|ui| {
+        group_label(ui, "Duration");
         for (key, value, label) in DURATION_KEYS {
             let hint = if is_fretted(kind) {
                 format!("{} / {}", key_label(keys::LONGER), key_label(keys::SHORTER))
             } else {
                 key_hint(key)
             };
-            button(ui, d.value == value, label, &hint, Command::Value(value));
+            button(ui, Some(d.value == value), label, &hint, Some(Command::Value(value)));
         }
-        button(ui, d.dots > 0, "dot", &key_hint(keys::DOT), Command::ToggleDot);
+        button(ui, Some(d.dots > 0), "Dot", &key_hint(keys::DOT), Some(Command::ToggleDot));
+        let triplet = d.valid_tuplet().is_some();
         button(
             ui,
-            d.valid_tuplet().is_some(),
-            "triplet",
+            Some(triplet),
+            "Triplet",
             &shortcut_hint(keys::TRIPLET),
-            Command::ToggleTriplet,
+            Some(Command::ToggleTriplet),
         );
         ui.separator();
-        button(ui, beat.accent, "accent", &key_hint(keys::ACCENT), Command::Accent);
-        button(ui, false, "rest", &key_hint(keys::REST), Command::Clear);
-        button(ui, false, "repeat bar", &shortcut_hint(keys::REPEAT_BAR), Command::RepeatBar);
-        if kind == StaffKind::Drums {
-            ui.separator();
-            let hint = key_hint(keys::VOICE);
-            button(ui, cursor.voice == 0, "hands ↑", &hint, Command::ToggleVoice);
-            button(ui, cursor.voice == 1, "feet ↓", &hint, Command::ToggleVoice);
-        } else if !staff.has_tab() {
-            ui.separator();
-            button(ui, beat.slash, "slash", &key_hint(keys::SLASH), Command::Slash);
+        group_label(ui, "Beat");
+        button(ui, Some(beat.accent), "Accent", &key_hint(keys::ACCENT), Some(Command::Accent));
+        if kind != StaffKind::Drums && !staff.has_tab() {
+            button(ui, Some(beat.slash), "Slash", &key_hint(keys::SLASH), Some(Command::Slash));
         }
+        // On fretted staves 0 types fret 0, so only Delete makes a rest.
+        let rest_hint = if is_fretted(kind) {
+            keys::CLEAR_KEYS.map(key_label).join(" / ")
+        } else {
+            key_hint(keys::REST)
+        };
+        button(ui, None, "Rest", &rest_hint, Some(Command::Clear));
+        let repeat_hint =
+            format!("Copy this bar into the next ({})", shortcut_hint(keys::REPEAT_BAR));
+        button(ui, None, "Repeat bar", &repeat_hint, Some(Command::RepeatBar));
     });
     if kind == StaffKind::Drums {
         ui.horizontal_wrapped(|ui| {
+            group_label(ui, "Voice");
+            let hint = format!("{}: switch voice", key_hint(keys::VOICE));
+            for (voice, label) in [(0, "Hands ↑"), (1, "Feet ↓")] {
+                let on = cursor.voice == voice;
+                // Clicking the active voice keeps it.
+                button(ui, Some(on), label, &hint, (!on).then_some(Command::ToggleVoice));
+            }
+            ui.separator();
+            group_label(ui, "Drums");
             for (key, hit) in DRUM_KEYS {
-                button(
-                    ui,
-                    beat.drums.contains(&hit),
-                    hit.name(),
-                    &key_hint(key),
-                    Command::Drum(hit),
-                );
+                let on = beat.drums.contains(&hit);
+                button(ui, Some(on), hit.name(), &key_hint(key), Some(Command::Drum(hit)));
             }
         });
     }

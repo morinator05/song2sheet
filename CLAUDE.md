@@ -38,18 +38,22 @@ A Cargo workspace; dependency versions live in `[workspace.dependencies]`.
   - Chord symbols are collected by their position in the bar and attached to whichever staff of the part is kept. A part may have several staves; the tab staff wins.
 - `crates/raster`: draws a `Page` with `tiny-skia`. The app shows this image as its preview. Don't add a separate egui-native notation renderer.
 - `crates/pdf`: draws the `DisplayList` with `krilla`, via `draw_glyphs` and `glyph_run`, never `draw_text`.
-- `app/`: the `eframe`/`egui` binary. It has `recent` (the recent-files list, kept in eframe's app storage), `document` (file I/O; saves via a temporary file and detects unsaved changes by comparing against the last saved `Project`), `preview` (rerasterizes when the project, filter or width differs from the last render), and `screens/`:
-  - `song_panel`: song details and the section pool.
-  - `arranger`: sheet rows with drag-to-reorder.
-  - `picker/`: imports a score, chooses parts and a bar range (overview drawn in chunks of up to 8 bars, split at time-signature changes) and creates a section.
-  - `notation_view`: a rendered section with a highlight (cursor or bars) and click hit-testing, shared by the editor and the picker.
-  - `editor/`: the section editor. `keys` is the **single source** of shortcuts; the legend and toolbar hints are generated from it. `commands` holds the pure edit commands, `cursor` the navigation, and `toolbar` the buttons.
-  - `widgets`: shared constants, icons and helpers.
+- `app/`: the `eframe`/`egui` binary. **UI rules are in `docs/DESIGN.md`; follow them.**
+  - `theme/`: fonts (Noto Sans + Phosphor icons), sizes (`metrics.rs`) and colours. `kde.rs` reads KDE's `kdeglobals` (light/dark + accent, re-read live). Screens take colours only from `theme::palette`.
+  - `app/`: layout and navigation (`mod.rs`), top bar, status line and preview header (`chrome.rs`), file actions (`files.rs`).
+  - `history` (undo/redo snapshots of `Project`), `shortcuts` (app-wide keys), `status` (fading message line), `recent` (the recent-files list, kept in eframe's app storage), `document` (file I/O; saves via a temporary file and detects unsaved changes by comparing against the last saved `Project`), `preview` (rerasterizes when the project, filter or width differs from the last render).
+  - `screens/`: each `show` returns an optional `Nav` (open a section, go to Import or Sheet).
+    - `song_panel`: song details and the section pool.
+    - `arranger`: sheet rows with drag-to-reorder.
+    - `picker/`: imports a score, chooses parts and a bar range (overview drawn in chunks of up to 8 bars, split at time-signature changes) and creates a section.
+    - `notation_view`: a rendered section with a highlight (cursor or bars) and click hit-testing, shared by the editor and the picker.
+    - `editor/`: the section editor. `keys` is the **single source** of shortcuts; the legend and toolbar hints are generated from it. `commands` holds the pure edit commands, `cursor` the navigation, `header` the section settings and staves, and `toolbar` the buttons.
+    - `widgets/`: shared constants and helpers, `buttons` (primary/secondary/ghost/danger/toggle, `combo`), `layout` (`header`, `card`, `caption`) and `icons`.
 
   Keyboard scheme: a Guitar Pro-style beat cursor with MuseScore duration numbers (2–7). On guitar and bass staves, digits type frets.
 - Not built: native Guitar Pro import. The user deferred it, since exporting MusicXML from Guitar Pro works. It needs real `.gp` files to test against; the GPIF format is undocumented.
 
-Fonts live in `assets/fonts/`: Bravura (SMuFL, 1 em = 4 staff spaces) and Noto Sans, both OFL, embedded with `include_bytes!`.
+Fonts live in `assets/fonts/`: Bravura (SMuFL, 1 em = 4 staff spaces) and Noto Sans (both OFL), plus the Phosphor icon font (MIT) for the UI, all embedded with `include_bytes!`.
 
 ## Code quality
 
