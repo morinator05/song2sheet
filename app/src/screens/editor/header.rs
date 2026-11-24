@@ -10,6 +10,7 @@ use crate::screens::widgets::{
     Icon, NAME_FIELD_W, SECTION_NAME_HINT, SHORT_FIELD_W, TEMPO_LABEL, combo, danger, icon_button,
     menu, optional_bpm, toggle,
 };
+use crate::shortcuts;
 use crate::status::{self, Kind};
 
 pub fn section_settings(ui: &mut egui::Ui, seg: &mut Segment) {
@@ -36,15 +37,23 @@ pub fn section_settings(ui: &mut egui::Ui, seg: &mut Segment) {
             let shorter = ts.bar_ticks() < seg.time_sig.bar_ticks();
             commands::set_time_sig(seg, ts);
             if shorter {
-                status::post(ui.ctx(), Kind::Warning, "Bars were cut to fit; Ctrl+Z undoes this");
+                let undo = ui.ctx().format_shortcut(&shortcuts::UNDO);
+                status::post(
+                    ui.ctx(),
+                    Kind::Warning,
+                    format!("Bars were cut to fit; {undo} undoes this"),
+                );
             }
         }
         ui.separator();
         ui.label(format!("Bars {}", seg.bar_count()));
-        if icon_button(ui, Icon::Remove, "Bar").on_hover_text("Remove the last bar").clicked() {
+        if icon_button(ui, Icon::Remove, "Remove bar")
+            .on_hover_text("Remove the last bar")
+            .clicked()
+        {
             commands::remove_last_bar(seg);
         }
-        if icon_button(ui, Icon::Add, "Bar").on_hover_text("Add a bar at the end").clicked() {
+        if icon_button(ui, Icon::Add, "Add bar").on_hover_text("Add a bar at the end").clicked() {
             commands::add_bar(seg);
         }
     });

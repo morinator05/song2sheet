@@ -14,7 +14,6 @@ use crate::theme::{self, metrics};
 
 /// A song sheet should fit on this many pages; more is flagged.
 const MAX_PAGES: usize = 2;
-const TOO_LONG: &str = "Longer than 2 pages: shorten comments or use fewer rows";
 /// Hover text of the part chooser.
 const PART_HINT: &str = "Which part the preview and the exported PDF show";
 
@@ -67,7 +66,7 @@ impl App {
                     .on_hover_text(hint(title, tip(shortcut)))
                     .clicked()
                 {
-                    self.screen = screen;
+                    self.set_screen(screen);
                 }
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -112,7 +111,9 @@ impl App {
             let text = count(pages, "page");
             if pages > MAX_PAGES {
                 let warn = theme::palette(ui.ctx()).warn;
-                ui.label(RichText::new(text).small().color(warn)).on_hover_text(TOO_LONG);
+                ui.label(RichText::new(text).small().color(warn)).on_hover_text(format!(
+                    "Longer than {MAX_PAGES} pages: shorten comments or use fewer rows"
+                ));
             } else {
                 caption(ui, text);
             }

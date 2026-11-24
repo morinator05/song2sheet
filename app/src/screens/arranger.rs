@@ -8,7 +8,8 @@ use super::Nav;
 use super::song_panel::new_section;
 use super::widgets::{
     Icon, NAME_FIELD_W, SHEET_TITLE, caption, card_frame, clickable, combo, count, danger,
-    empty_state, ghost, header, icon_button, icons, open_card_frame, staff_kind_options,
+    dialog_or_menu_open, empty_state, ghost, header, icon_button, icons, open_card_frame,
+    staff_kind_options,
 };
 use crate::shortcuts;
 use crate::theme::{self, metrics};
@@ -96,6 +97,9 @@ fn has_focus_inside(ui: &egui::Ui, rect: egui::Rect) -> bool {
 /// Alt+Up/Down move the row whose field has focus (found last frame);
 /// the focus moves along to the row's label field.
 fn keyboard_move(ui: &mut egui::Ui, sheet: &mut Vec<SheetEntry>) {
+    if dialog_or_menu_open(ui.ctx()) {
+        return;
+    }
     let Some(i) = ui.data(|d| d.get_temp::<Option<usize>>(focused_row_id(ui))).flatten() else {
         return;
     };
@@ -109,6 +113,10 @@ fn keyboard_move(ui: &mut egui::Ui, sheet: &mut Vec<SheetEntry>) {
     };
     if let Some(to) = to {
         move_row(sheet, i, to);
+        // The label fields' undo histories belong to the rows that left.
+        for index in [i, to] {
+            ui.data_mut(|d| d.remove::<egui::text_edit::TextEditState>(label_id(index)));
+        }
         let id = label_id(to);
         ui.memory_mut(|m| m.request_focus(id));
     }

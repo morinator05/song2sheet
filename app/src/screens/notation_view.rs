@@ -9,12 +9,12 @@ use model::Segment;
 
 use super::editor::Cursor;
 use super::widgets::image_widths;
-
-/// How far above/below the staff lines a click or highlight reaches (mm).
-const REACH: f32 = 3.0;
 use crate::theme::metrics::{
     NOTATION_HIGHLIGHT_ALPHA as HIGHLIGHT_ALPHA, NOTATION_HIGHLIGHT_RADIUS as HIGHLIGHT_ROUNDING,
 };
+
+/// How far above/below the staff lines a click or highlight reaches (mm).
+const REACH: f32 = 3.0;
 /// Half height (mm) of the mark on the selected tab string.
 const STRING_MARK_HALF_H: f32 = 0.6;
 /// Opacity of the string mark (stronger than the beat highlight).
@@ -95,7 +95,7 @@ impl NotationView {
         hit(&self.beats, pos2(mm.x, mm.y), voice)
     }
 
-    /// Where the highlight was drawn last frame, to scroll it into view.
+    /// Where the highlight was last drawn, to scroll it into view.
     pub fn highlight_rect(&self) -> Option<Rect> {
         self.highlight
     }

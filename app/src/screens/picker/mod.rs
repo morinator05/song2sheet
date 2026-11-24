@@ -200,7 +200,8 @@ fn selection_keys(ui: &mut egui::Ui, state: &mut PickerState) {
     if state.selection != before {
         state.reveal = state.selection.as_ref().map(|s| s.head());
     }
-    if ui.input_mut(|i| i.consume_shortcut(&shortcuts::FOCUS_NAME)) {
+    // The name field only exists while bars are selected.
+    if state.selection.is_some() && ui.input_mut(|i| i.consume_shortcut(&shortcuts::FOCUS_NAME)) {
         state.focus_name = true;
     }
     if state.selection.is_some() && pressed(ui, egui::Modifiers::NONE, egui::Key::Escape) {

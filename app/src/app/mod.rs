@@ -91,7 +91,14 @@ impl App {
         self.filter = PartFilter::All;
     }
 
+    /// Shows `screen`, first keeping a chord symbol still being typed.
+    fn set_screen(&mut self, screen: Screen) {
+        self.editor.commit_chord(&mut self.doc.project);
+        self.screen = screen;
+    }
+
     fn navigate(&mut self, nav: Nav) {
+        self.editor.commit_chord(&mut self.doc.project);
         match nav {
             Nav::Edit(id) => {
                 self.editor.open(&mut self.doc.project, id);
@@ -110,13 +117,12 @@ impl App {
             self.editor.refresh(project);
             self.history.sync(project);
         }
-        let text = match (redo, done) {
-            (false, true) => "Undid the last change",
-            (true, true) => "Redid the change",
-            (false, false) => "Nothing to undo",
-            (true, false) => "Nothing to redo",
-        };
-        self.status.success(ctx, text);
+        match (redo, done) {
+            (false, true) => self.status.success(ctx, "Undid the last change"),
+            (true, true) => self.status.success(ctx, "Redid the change"),
+            (false, false) => self.status.warn(ctx, "Nothing to undo"),
+            (true, false) => self.status.warn(ctx, "Nothing to redo"),
+        }
     }
 
     /// The section open in the editor, while the editor is shown.
@@ -186,7 +192,10 @@ impl eframe::App for App {
         }
         // Record edits first: opening a section normalizes it, which is
         // not a step of its own.
-        self.history.record(&self.doc.project, ctx.input(|i| i.time), typing);
+        // Only a frame typed in from start to end counts as typing, so a
+        // click that ends the typing is a step of its own.
+        let typed = typing && ctx.text_edit_focused();
+        self.history.record(&self.doc.project, ctx.input(|i| i.time), typed);
         if let Some(nav) = nav {
             self.navigate(nav);
             self.history.sync(&self.doc.project);
@@ -227,7 +236,7 @@ impl App {
             (keys::SHOW_PICKER, Screen::Picker),
         ] {
             if pressed(shortcut) {
-                self.screen = screen;
+                self.set_screen(screen);
             }
         }
         // While typing, text fields undo their own edits.

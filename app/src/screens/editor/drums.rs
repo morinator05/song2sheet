@@ -1,7 +1,7 @@
 //! Drum input: every hit goes to its own voice, hands (stems up) or feet
 //! (stems down, see [`DrumHit::is_foot`]), whichever voice the cursor is in.
 
-use model::{DrumHit, Segment, edit};
+use model::{Beat, DrumHit, Segment, edit};
 
 use super::cursor::{Cursor, ensure_voice};
 
@@ -14,8 +14,9 @@ fn voice_of(hit: DrumHit) -> usize {
 
 /// The beat to toggle `hit` on: the selected one if it already has the hit
 /// or is in the hit's voice, else the beat at the same time in the hit's
-/// voice. A rest sounding across that time is split so that a beat starts
-/// there. `None` when a note sounds across it (the hit then stays put).
+/// voice. A rest there is split so that a beat of the selected beat's
+/// duration starts at that time, with as few rests as possible around it.
+/// `None` when a note in the other voice sounds across that time.
 pub fn target(seg: &mut Segment, cursor: &Cursor, hit: DrumHit) -> Option<Cursor> {
     let beat = cursor.beat(seg)?;
     let voice = voice_of(hit);
@@ -28,16 +29,22 @@ pub fn target(seg: &mut Segment, cursor: &Cursor, hit: DrumHit) -> Option<Cursor
     let beats = at.voice_mut(seg)?;
     let i = edit::beat_at(beats, tick);
     let start = edit::onset(beats, i);
+    let end = start + beats[i].duration.ticks();
     at.beat = i;
-    if start != tick {
+    let too_long = end - tick > duration.ticks();
+    if start != tick || (too_long && beats[i].is_rest()) {
         if !beats[i].is_rest() {
             return None;
         }
-        // The new beat at `tick` gets the selected beat's duration if it fits.
-        let end = start + beats[i].duration.ticks();
-        let mut parts = edit::rests(tick - start, duration);
+        let mut parts = edit::rests(tick - start, edit::DEFAULT_REST);
         at.beat = i + parts.len();
-        parts.extend(edit::rests(end - tick, duration));
+        let left = end - tick;
+        if left >= duration.ticks() {
+            parts.push(Beat::rest(duration));
+            parts.extend(edit::rests(left - duration.ticks(), edit::DEFAULT_REST));
+        } else {
+            parts.extend(edit::rests(left, edit::DEFAULT_REST));
+        }
         beats.splice(i..=i, parts);
     }
     Some(at)
@@ -86,6 +93,33 @@ mod tests {
         // Typing it again removes it.
         apply(Command::Drum(DrumHit::Kick), &mut seg, &mut c, &mut input, 0.0).unwrap();
         assert!(!has_hit(&seg, &c, DrumHit::Kick));
+    }
+
+    #[test]
+    fn kick_on_beat_one_keeps_the_typed_duration() {
+        let (mut seg, mut c, mut input) = eighths();
+        apply(Command::Drum(DrumHit::Kick), &mut seg, &mut c, &mut input, 0.0).unwrap();
+        let feet = &seg.staves[0].bars[0].voices[1];
+        assert_eq!(feet[0].drums, [DrumHit::Kick]);
+        assert_eq!(feet[0].duration, Duration::new(NoteValue::Eighth));
+        // A second kick later in the bar still lands in the feet.
+        apply(Command::Right, &mut seg, &mut c, &mut input, 0.0).unwrap();
+        apply(Command::Right, &mut seg, &mut c, &mut input, 0.0).unwrap();
+        apply(Command::Drum(DrumHit::Kick), &mut seg, &mut c, &mut input, 0.0).unwrap();
+        let bar = &seg.staves[0].bars[0];
+        assert!(bar.voices[0].iter().all(|b| b.drums.is_empty()));
+        assert_eq!(bar.voices[1].iter().filter(|b| !b.drums.is_empty()).count(), 2);
+    }
+
+    #[test]
+    fn split_rests_stay_few() {
+        let (mut seg, mut c, mut input) = eighths();
+        apply(Command::Right, &mut seg, &mut c, &mut input, 0.0).unwrap();
+        apply(Command::Drum(DrumHit::Kick), &mut seg, &mut c, &mut input, 0.0).unwrap();
+        let feet = &seg.staves[0].bars[0].voices[1];
+        let bar: u32 = feet.iter().map(|b| b.duration.ticks()).sum();
+        assert_eq!(bar, seg.time_sig.bar_ticks(), "the voice still fills its bar");
+        assert!(feet.len() <= 5, "no run of eighth rests: {} beats", feet.len());
     }
 
     #[test]

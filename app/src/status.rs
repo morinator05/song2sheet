@@ -19,10 +19,24 @@ pub enum Kind {
     Error,
 }
 
-/// Leaves a message for the status line (from any screen).
+/// Leaves a message for the status line (from any screen). Of several
+/// messages in one frame the most serious one is shown (the last of equals).
 pub fn post(ctx: &egui::Context, kind: Kind, text: impl Into<String>) {
     let text = text.into();
-    ctx.data_mut(|d| d.insert_temp(mailbox(), Some((text, kind))));
+    ctx.data_mut(|d| {
+        let slot = d.get_temp_mut_or_default::<Option<(String, Kind)>>(mailbox());
+        if slot.as_ref().is_none_or(|(_, k)| severity(kind) >= severity(*k)) {
+            *slot = Some((text, kind));
+        }
+    });
+}
+
+fn severity(kind: Kind) -> u8 {
+    match kind {
+        Kind::Success => 0,
+        Kind::Warning => 1,
+        Kind::Error => 2,
+    }
 }
 
 fn mailbox() -> egui::Id {
@@ -37,6 +51,10 @@ pub struct Status {
 impl Status {
     pub fn success(&mut self, ctx: &egui::Context, text: impl Into<String>) {
         self.set(ctx, text.into(), Kind::Success);
+    }
+
+    pub fn warn(&mut self, ctx: &egui::Context, text: impl Into<String>) {
+        self.set(ctx, text.into(), Kind::Warning);
     }
 
     pub fn error(&mut self, ctx: &egui::Context, text: impl Into<String>) {
