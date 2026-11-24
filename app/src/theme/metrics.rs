@@ -37,3 +37,27 @@ pub const DROP_LINE: f32 = 2.0;
 /// Shadow under the preview's paper pages.
 pub const PAPER_SHADOW_BLUR: u8 = 10;
 pub const PAPER_SHADOW_OFFSET: [i8; 2] = [0, 2];
+
+/// Compact cards (Sections rows): inner margin.
+pub const ROW_CARD_MARGIN: f32 = SPACE_XS;
+
+/// Side of an icon.
+pub const ICON_SIZE: f32 = 16.0;
+/// Width of single-line name fields (sections, sheet row labels).
+pub const NAME_FIELD_W: f32 = 160.0;
+/// Width of short text fields (staff labels, chord symbols).
+pub const SHORT_FIELD_W: f32 = 70.0;
+/// Widest a text popup (the editor's key legend) gets before wrapping.
+pub const POPUP_TEXT_MAX_W: f32 = 560.0;
+
+/// Side panels: default and smallest width. At the smallest width the
+/// panel headers still fit their actions.
+pub const SONG_PANEL_W: f32 = 360.0;
+pub const SONG_PANEL_MIN_W: f32 = 290.0;
+pub const PREVIEW_PANEL_W: f32 = 540.0;
+pub const PREVIEW_PANEL_MIN_W: f32 = 360.0;
+
+/// The highlight over notation (cursor, selected bars): opacity of the
+/// accent fill and corner radius.
+pub const NOTATION_HIGHLIGHT_ALPHA: f32 = 0.35;
+pub const NOTATION_HIGHLIGHT_RADIUS: f32 = 2.0;

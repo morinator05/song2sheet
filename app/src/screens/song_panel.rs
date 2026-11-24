@@ -6,7 +6,7 @@ use model::{Project, Segment, SegmentId, SheetEntry};
 use super::Nav;
 use super::widgets::{
     BLOCK_GAP, Icon, TEMPO_LABEL, caption, card, card_frame, clickable, confirm, count, danger,
-    ghost, header, icon_button, optional_bpm,
+    empty_state, ghost, header, icon_button, open_card_frame, optional_bpm,
 };
 use crate::theme;
 
@@ -74,7 +74,8 @@ fn song_details(ui: &mut egui::Ui, project: &mut Project) {
 
 fn section_pool(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -> Option<Nav> {
     if project.segments.is_empty() {
-        caption(ui, "No sections yet. Create one with New, or import a score.");
+        let hint = "Create one with New section, or take them from a score with Import score.";
+        empty_state(ui, "No sections yet.", Some(hint), |_| {});
     }
     let mut nav = None;
     let mut add: Option<SegmentId> = None;
@@ -83,12 +84,8 @@ fn section_pool(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId
     let p = theme::palette(ui.ctx());
     for seg in &mut project.segments {
         let uses = project.sheet.iter().filter(|e| e.segment == seg.id).count();
-        let mut frame = card_frame(&p).inner_margin(theme::metrics::SPACE_XS);
-        if open == Some(seg.id) {
-            frame = frame
-                .fill(theme::mix(p.card, p.accent, theme::OPEN_TINT))
-                .stroke((theme::metrics::HAIRLINE, p.accent));
-        }
+        let frame = if open == Some(seg.id) { open_card_frame(&p) } else { card_frame(&p) };
+        let frame = frame.inner_margin(theme::metrics::ROW_CARD_MARGIN);
         let row = clickable(ui, |ui| {
             frame.show(ui, |ui| {
                 // One row: tools from the right, the name field takes the rest.

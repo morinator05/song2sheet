@@ -74,7 +74,12 @@ impl App {
                 menu(ui, Icon::Keyboard, "Shortcuts", shortcut_list);
                 if self.doc.is_dirty() {
                     let warn = theme::palette(ui.ctx()).warn;
-                    ui.label(RichText::new("Unsaved changes").color(warn));
+                    crate::screens::widgets::icons::label(
+                        ui,
+                        Icon::Warning,
+                        "Unsaved changes",
+                        warn,
+                    );
                 }
             });
         });
@@ -88,21 +93,19 @@ impl App {
     }
 
     pub(super) fn preview_panel(&mut self, ui: &mut egui::Ui) {
-        header(ui, "Preview", |_| {});
-        ui.horizontal(|ui| {
-            ui.label("Part").on_hover_text(PART_HINT);
+        // Right to left: Export PDF, then the part chooser and its label.
+        header(ui, "Preview", |ui| {
+            let tip =
+                hint("Export the chosen part as PDF", ui.ctx().format_shortcut(&keys::EXPORT));
+            let empty = self.doc.project.sheet.is_empty();
+            let why = "The sheet has no rows yet";
+            let export = primary_enabled(ui, !empty, Icon::Export, "Export PDF", why);
+            if export.on_hover_text(tip).clicked() {
+                self.export_pdf(ui.ctx());
+            }
             let options = part_options(&self.doc.project, self.filter);
             combo(ui, "part_filter", &mut self.filter, &options).on_hover_text(PART_HINT);
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let tip =
-                    hint("Export the chosen part as PDF", ui.ctx().format_shortcut(&keys::EXPORT));
-                let empty = self.doc.project.sheet.is_empty();
-                let why = "The sheet has no rows yet";
-                let export = primary_enabled(ui, !empty, Icon::Export, "Export PDF", why);
-                if export.on_hover_text(tip).clicked() {
-                    self.export_pdf(ui.ctx());
-                }
-            });
+            ui.label("Part").on_hover_text(PART_HINT);
         });
         let pages = self.preview.page_count();
         if pages > 0 {
@@ -114,7 +117,7 @@ impl App {
                 caption(ui, text);
             }
         }
-        ui.add_space(metrics::SPACE_S);
+        ui.add_space(metrics::BLOCK_GAP);
         self.preview.show(ui, &self.doc.project, self.filter);
     }
 

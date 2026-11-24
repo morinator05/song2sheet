@@ -11,8 +11,8 @@ use model::{Project, Segment, SheetEntry, StaffKind};
 
 use super::notation_view::{Highlight, NotationView};
 use super::widgets::{
-    Icon, NAME_FIELD_W, PICKER_TITLE, SECTION_NAME_HINT, caption, card, combo, header, icon_button,
-    keys_free, primary_enabled, staff_kind_options,
+    Icon, NAME_FIELD_W, PICKER_TITLE, SECTION_NAME_HINT, caption, card, combo, empty_state,
+    group_label, header, hint, icon_button, keys_free, primary_enabled, staff_kind_options,
 };
 use crate::document::dialogs;
 use crate::shortcuts;
@@ -140,23 +140,24 @@ pub fn show(
     project: &mut Project,
     state: &mut PickerState,
 ) -> Option<super::Nav> {
+    let loaded = state.score.is_some();
     header(ui, PICKER_TITLE, |ui| {
-        if icon_button(ui, Icon::Open, "Open score")
-            .on_hover_text("A MusicXML file (.musicxml, .xml, .mxl)")
-            .clicked()
-        {
+        // Without a score the empty state offers the button.
+        let tip = hint("Open another MusicXML score", ui.ctx().format_shortcut(&shortcuts::OPEN));
+        if loaded && icon_button(ui, Icon::Open, "Open score").on_hover_text(tip).clicked() {
             state.open(ui.ctx(), project);
         }
-        if !state.file_name.is_empty() {
-            caption(ui, &state.file_name);
-        }
     });
+    if loaded {
+        caption(ui, &state.file_name);
+    }
     if state.score.is_none() {
-        card(ui, |ui| {
-            ui.label(
-                "Export your song as MusicXML, open it here and pick the bars of each section.",
-            );
-            caption(ui, "MuseScore: File → Export. Guitar Pro: File → Export → MusicXML.");
+        let text = "Open a MusicXML score and pick the bars of each section.";
+        let hint = "MuseScore: File → Export. Guitar Pro: File → Export → MusicXML.";
+        empty_state(ui, text, Some(hint), |ui| {
+            if icon_button(ui, Icon::Open, "Open score").clicked() {
+                state.open(ui.ctx(), project);
+            }
         });
         return None;
     }
@@ -164,7 +165,7 @@ pub fn show(
         selection_keys(ui, state);
     }
     card(ui, |ui| parts(ui, state));
-    ui.add_space(metrics::SPACE_S);
+    ui.add_space(metrics::BLOCK_GAP);
     egui::Panel::bottom("picker_create")
         .frame(
             egui::Frame::new()
@@ -172,7 +173,7 @@ pub fn show(
         )
         .show_separator_line(false)
         .show(ui, |ui| card(ui, |ui| selection_row(ui, project, state)));
-    overview(ui, state);
+    card(ui, |ui| overview(ui, state));
     None
 }
 
@@ -211,8 +212,8 @@ fn parts(ui: &mut egui::Ui, state: &mut PickerState) {
     let Some(score) = state.score.as_mut() else { return };
     let kinds = staff_kind_options();
     egui::Grid::new("picker_parts").num_columns(2).show(ui, |ui| {
-        ui.strong("Score part");
-        ui.strong("Instrument");
+        group_label(ui, "Score part");
+        group_label(ui, "Instrument");
         ui.end_row();
         for (i, part) in score.parts.iter_mut().enumerate() {
             ui.checkbox(&mut state.use_part[i], &part.name);

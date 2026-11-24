@@ -6,9 +6,19 @@ These rules keep the app consistent. The code for them lives in `app/src/theme/`
 
 There are three fixed areas: **Sections** on the left, the **centre screen** in the middle (Sheet, Section editor or Import) and the **Preview** on the right. A slim top bar holds the file actions, undo/redo, the screen tabs and Shortcuts. A bottom status line shows the result of the last action.
 
-- Each area starts with a `header`: a bold title, with that area's actions aligned right.
-- Group related controls in a `card` (a lifted background with a hairline border and radius 8).
+- Each area starts with a `header`: a bold title, with that area's actions aligned right. The actions keep their size; a title too long for the rest is cut with "…", and the full title is in its tooltip. Captions (counts, file names) go on their own line under the header, never inside it.
+- Group related controls in a `card` (a lifted background with a hairline border and radius 8). Notation (the editor's section, the import overview) sits in a card too. Repeated compact rows (Sections) use cards with the `ROW_CARD_MARGIN`.
 - The preview shows pages as white paper with a soft shadow.
+- Panels have a smallest width (`SONG_PANEL_MIN_W`, `PREVIEW_PANEL_MIN_W`) at which their header actions still fit.
+- Separate groups inside one card with a separator; separate cards and blocks with the 16-point gap.
+
+### Empty states
+
+Every screen or list with nothing in it uses `empty_state`: a centred sentence saying what is missing, the buttons that fix it (at most two), and a weak hint under them.
+
+### Forms
+
+Fields with labels in a column (song details, import parts) use a two-column grid with labels on the left. Single rows of settings (the editor's section settings) put each label directly before its control. Field widths come from `NAME_FIELD_W` and `SHORT_FIELD_W`; a field that should fill its row asks for the available width. Column headings use `group_label`.
 
 ## Spacing and type (`theme/metrics.rs`)
 
@@ -37,6 +47,17 @@ There are three fixed areas: **Sections** on the left, the **centre screen** in 
 - Labels are sentence case and use verbs. Don't end a label with "…".
 - Icons (`widgets/icons.rs`, the `Icon` enum) come from the system icon theme: KDE's configured theme, falling back to Breeze. They are tinted like the text next to them and centred as images. Without an icon theme, the embedded Phosphor font stands in. Pair an icon with text, except in ghost buttons. Never use emoji.
 
+## Messages and tooltips
+
+- The status line shows the result of every action: file actions, imports, undo/redo, refused editor commands and warnings such as cut bars. Screens send messages with `status::post`. Confirmations and warnings fade after 5 s; errors stay until replaced.
+- A message may also show inline when it is context for what the user is typing (an editor refusal next to the chord field).
+- Tooltips say what a control does, followed by its shortcut in brackets: "Quarter note (5)", "Export the chosen part as PDF (Ctrl+E)". Build them with `widgets::hint`.
+
+## Words
+
+- **Song:** the file. **Section:** one part of the song (intro, verse…) with its notation. **Row:** one line of the sheet, showing a section (a section can appear in many rows). **Staff:** one instrument's line in a section. **Part:** an instrument's sheet (preview and export); on the Import screen the score's own parts are called **score parts**.
+- Buttons that create or open say what: "New song", "New section", "Open song", "Open score", "Import score".
+
 ## Colour (`theme/mod.rs`)
 
 Colours come from KDE Plasma's `kdeglobals`: the window, view, button and selection groups, and the accent. Light or dark is decided by the window background. The file is checked every 2 s, so a scheme change in System Settings applies live. Without the file, egui's own light and dark visuals are used, following the system setting where egui can detect it. Screens read colours only from `theme::palette(ctx)`.
@@ -54,6 +75,11 @@ Colours come from KDE Plasma's `kdeglobals`: the window, view, button and select
   - warn for "Unsaved changes" and for refused editor commands
   - error for failures (they stay until replaced)
 - **Weak text** is for captions, counts and hints.
+- **Contrast:** accent tints (`OPEN_TINT`) only colour backgrounds behind normal text, so text keeps the scheme's contrast. Text on accent or error fills uses the scheme's selection foreground (`on_accent`, `on_error`).
+
+## Fonts
+
+The UI uses the embedded Noto Sans, not the KDE font setting. The sheet is engraved with the same font, so the preview matches the printout exactly; Noto Sans is also Plasma's default.
 
 ## Keyboard
 

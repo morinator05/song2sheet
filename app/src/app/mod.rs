@@ -18,12 +18,6 @@ use crate::shortcuts as keys;
 use crate::status::Status;
 use crate::theme::{ThemeWatcher, metrics};
 
-/// Side panel widths (points): default and smallest.
-const SONG_PANEL_W: f32 = 360.0;
-const SONG_PANEL_MIN_W: f32 = 290.0;
-const PREVIEW_PANEL_W: f32 = 540.0;
-const PREVIEW_PANEL_MIN_W: f32 = 340.0;
-
 /// What the central area shows.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Screen {
@@ -160,14 +154,14 @@ impl eframe::App for App {
         let open = self.open_section();
         let mut nav = egui::Panel::left("song")
             .frame(side)
-            .default_size(SONG_PANEL_W)
-            .min_size(SONG_PANEL_MIN_W)
+            .default_size(metrics::SONG_PANEL_W)
+            .min_size(metrics::SONG_PANEL_MIN_W)
             .show(ui, |ui| screens::song_panel::show(ui, &mut self.doc.project, open))
             .inner;
         egui::Panel::right("preview")
             .frame(side)
-            .default_size(PREVIEW_PANEL_W)
-            .min_size(PREVIEW_PANEL_MIN_W)
+            .default_size(metrics::PREVIEW_PANEL_W)
+            .min_size(metrics::PREVIEW_PANEL_MIN_W)
             .show(ui, |ui| self.preview_panel(ui));
         let centre = egui::Frame::central_panel(&style).inner_margin(metrics::PANEL_MARGIN);
         let centre_nav = egui::CentralPanel::default()

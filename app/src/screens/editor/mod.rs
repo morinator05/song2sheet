@@ -15,17 +15,14 @@ use model::{Project, Segment, SegmentId, StaffKind, edit};
 use super::Nav;
 use super::notation_view::{Highlight, NotationView};
 use super::widgets::{
-    BLOCK_GAP, EDITOR_TITLE, Icon, SHORT_FIELD_W, caption, card, header, hint, icon_button, icons,
-    keys_free, menu,
+    BLOCK_GAP, EDITOR_TITLE, Icon, SHORT_FIELD_W, caption, card, empty_state, header, hint,
+    icon_button, icons, keys_free, menu,
 };
 use crate::status::{self, Kind};
 use crate::theme;
 use commands::{Command, Input};
 pub use cursor::Cursor;
 use keys::Action;
-
-/// Widest the keyboard legend popup gets before wrapping.
-const LEGEND_MAX_W: f32 = 560.0;
 
 #[derive(Default)]
 pub struct EditorState {
@@ -104,8 +101,12 @@ impl EditorState {
 pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut EditorState) -> Option<Nav> {
     let Some(seg) = state.segment.and_then(|id| project.segment_mut(id)) else {
         header(ui, EDITOR_TITLE, |_| {});
-        caption(ui, "Choose a section to edit with its edit button in the Sections list.");
-        return None;
+        let hint = "Or open one with its edit button in the Sections list.";
+        return empty_state(ui, "No section is open.", Some(hint), |ui| {
+            icon_button(ui, Icon::Add, "New section")
+                .clicked()
+                .then(|| Nav::Edit(super::song_panel::new_section(project)))
+        });
     };
     state.cursor.clamp(seg);
     let title = if seg.name.trim().is_empty() {
@@ -115,7 +116,7 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut EditorState) -
     };
     let back = header(ui, &title, |ui| {
         menu(ui, Icon::Keyboard, "Shortcuts", |ui| {
-            ui.set_max_width(LEGEND_MAX_W);
+            ui.set_max_width(theme::metrics::POPUP_TEXT_MAX_W);
             for line in toolbar::legend(ui.ctx()) {
                 ui.label(line);
             }
@@ -136,17 +137,25 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut EditorState) -
             }
         });
         ui.add_space(BLOCK_GAP);
-        if let Some(b) = state.view.show(ui, seg, Highlight::Cursor(&state.cursor)) {
-            state.cursor =
-                Cursor { staff: b.staff, bar: b.bar, voice: b.voice, beat: b.beat, ..state.cursor };
-        }
-        if std::mem::take(&mut state.reveal)
-            && let Some(rect) = state.view.highlight_rect()
-        {
-            ui.scroll_to_rect(rect, None);
-        }
-        ui.add_space(BLOCK_GAP);
-        beat_details(ui, seg, state);
+        // The notation and the details of the beat under the cursor.
+        card(ui, |ui| {
+            if let Some(b) = state.view.show(ui, seg, Highlight::Cursor(&state.cursor)) {
+                state.cursor = Cursor {
+                    staff: b.staff,
+                    bar: b.bar,
+                    voice: b.voice,
+                    beat: b.beat,
+                    ..state.cursor
+                };
+            }
+            if std::mem::take(&mut state.reveal)
+                && let Some(rect) = state.view.highlight_rect()
+            {
+                ui.scroll_to_rect(rect, None);
+            }
+            ui.add_space(theme::metrics::SPACE_S);
+            beat_details(ui, seg, state);
+        });
     });
     handle_keys(ui, seg, state);
     back.then_some(Nav::Sheet)

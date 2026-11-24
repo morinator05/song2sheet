@@ -9,12 +9,11 @@ use eframe::egui;
 pub use crate::theme::metrics::BLOCK_GAP;
 pub use buttons::{combo, danger, ghost, icon_button, menu, primary_enabled, secondary, toggle};
 pub use icons::Icon;
-pub use layout::{caption, card, card_frame, clickable, group_label, header};
+pub use layout::{
+    caption, card, card_frame, clickable, empty_state, group_label, header, open_card_frame,
+};
 
-/// Width of single-line name fields (sections, sheet row labels).
-pub const NAME_FIELD_W: f32 = 160.0;
-/// Width of short text fields (staff labels, chord symbols).
-pub const SHORT_FIELD_W: f32 = 70.0;
+pub use crate::theme::metrics::{NAME_FIELD_W, SHORT_FIELD_W};
 
 /// Placeholder of section name fields.
 pub const SECTION_NAME_HINT: &str = "e.g. Verse";

@@ -9,8 +9,7 @@ use eframe::egui::{self, Button, Color32, Image, RichText, TextureHandle, vec2};
 
 use crate::theme::icon_theme;
 
-/// Side of an icon (points).
-pub const ICON_SIZE: f32 = 16.0;
+use crate::theme::metrics::ICON_SIZE;
 /// Gap between a fallback glyph and its text.
 const GLYPH_GAP: &str = "  ";
 
@@ -149,14 +148,9 @@ pub fn button(
     }
 }
 
-/// `icon` followed by `text`, both in `color`.
+/// `icon` followed by `text`, both in `color` (a frameless, inert
+/// button, so the order holds in right-to-left layouts too).
 pub fn label(ui: &mut egui::Ui, icon: Icon, text: &str, color: Color32) -> egui::Response {
-    ui.horizontal(|ui| {
-        match image(ui.ctx(), icon, color) {
-            Some(img) => ui.add(img),
-            None => ui.label(RichText::new(icon.glyph()).color(color)),
-        };
-        ui.label(RichText::new(text).color(color));
-    })
-    .response
+    let content = button(ui, Some(icon), text, Some(color));
+    ui.add(content.frame(false).sense(egui::Sense::hover()))
 }

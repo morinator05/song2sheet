@@ -7,16 +7,14 @@ use model::{PartComment, Project, SegmentId, SheetEntry};
 use super::Nav;
 use super::song_panel::new_section;
 use super::widgets::{
-    BLOCK_GAP, Icon, NAME_FIELD_W, SHEET_TITLE, caption, card_frame, clickable, combo, count,
-    danger, ghost, header, icon_button, icons, staff_kind_options,
+    Icon, NAME_FIELD_W, SHEET_TITLE, caption, card_frame, clickable, combo, count, danger,
+    empty_state, ghost, header, icon_button, icons, open_card_frame, staff_kind_options,
 };
 use crate::shortcuts;
 use crate::theme::{self, metrics};
 
 /// Largest repeat count offered for a row.
 const MAX_REPEAT: u32 = 32;
-/// How strongly the dragged row is tinted with the accent.
-const DRAG_TINT: f32 = 0.12;
 
 enum RowAction {
     Move { from: usize, to: usize },
@@ -28,27 +26,21 @@ enum RowAction {
 /// Shows the sheet. `open` is the section shown in the editor, if any.
 pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -> Option<Nav> {
     let rows = project.sheet.len();
-    header(ui, SHEET_TITLE, |ui| {
-        caption(ui, count(rows, "row"));
-    });
+    header(ui, SHEET_TITLE, |_| {});
     if project.sheet.is_empty() {
-        return empty_state(ui, project);
+        return empty_sheet(ui, project);
     }
+    caption(ui, count(rows, "row"));
     let sections: Vec<(SegmentId, String)> =
         project.segments.iter().map(|s| (s.id, s.name.clone())).collect();
     let mut action = None;
     let p = theme::palette(ui.ctx());
-    let dragging = egui::DragAndDrop::payload::<usize>(ui.ctx()).map(|i| *i);
     keyboard_move(ui, &mut project.sheet);
     let mut focused_row = None;
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
         for (i, entry) in project.sheet.iter_mut().enumerate() {
-            let mut frame = card_frame(&p);
-            if open == Some(entry.segment) {
-                frame = frame.fill(theme::mix(p.card, p.accent, theme::OPEN_TINT));
-            } else if dragging == Some(i) {
-                frame = frame.fill(theme::mix(p.card, p.accent, DRAG_TINT));
-            }
+            let frame =
+                if open == Some(entry.segment) { open_card_frame(&p) } else { card_frame(&p) };
             let response =
                 clickable(ui, |ui| frame.show(ui, |ui| row(ui, i, entry, &sections, &mut action)))
                     .response;
@@ -134,26 +126,21 @@ fn handle_tip(ctx: &egui::Context) -> String {
 }
 
 /// What to do on an empty sheet, with the two ways to start.
-fn empty_state(ui: &mut egui::Ui, project: &mut Project) -> Option<Nav> {
-    ui.add_space(BLOCK_GAP);
-    let mut nav = None;
-    ui.vertical_centered(|ui| {
-        if project.segments.is_empty() {
-            ui.label("Start with a new section, or import sections from a score.");
-            ui.add_space(metrics::SPACE_S);
-            ui.horizontal(|ui| {
-                if icon_button(ui, Icon::Add, "New section").clicked() {
-                    nav = Some(Nav::Edit(new_section(project)));
-                }
-                if icon_button(ui, Icon::Import, "Import a score").clicked() {
-                    nav = Some(Nav::Import);
-                }
-            });
-        } else {
-            ui.label("Add sections to the sheet with the \"Add to the end of the sheet\" button in the Sections list.");
-        }
-    });
-    nav
+fn empty_sheet(ui: &mut egui::Ui, project: &mut Project) -> Option<Nav> {
+    if project.segments.is_empty() {
+        let hint = "A section is one part of the song: intro, verse, chorus…";
+        return empty_state(ui, "The sheet is empty.", Some(hint), |ui| {
+            if icon_button(ui, Icon::Add, "New section").clicked() {
+                Some(Nav::Edit(new_section(project)))
+            } else if icon_button(ui, Icon::Import, "Import score").clicked() {
+                Some(Nav::Import)
+            } else {
+                None
+            }
+        });
+    }
+    let hint = "Use the add-to-sheet button of a section in the Sections list.";
+    empty_state(ui, "The sheet is empty.", Some(hint), |_| None)
 }
 
 /// Moves item `from` so that it ends up at index `to`.

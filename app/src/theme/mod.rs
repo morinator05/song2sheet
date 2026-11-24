@@ -45,6 +45,8 @@ pub struct Palette {
     pub success: Color32,
     pub warn: Color32,
     pub error: Color32,
+    /// Text drawn on the error colour (the destructive button).
+    pub on_error: Color32,
     /// Fill and border of cards (grouped content).
     pub card: Color32,
     pub border: Color32,
@@ -217,6 +219,7 @@ fn from_kde(ini: &Ini) -> (Theme, Visuals, Palette) {
         success: pick(VIEW, FOREGROUND_POSITIVE, fallback_palette(&v).success),
         warn: v.warn_fg_color,
         error: v.error_fg_color,
+        on_error: on_accent,
         card: mix(window_bg, text, CARD_LIFT),
         border,
         weak_text: weak,
@@ -237,6 +240,7 @@ fn fallback_palette(v: &Visuals) -> Palette {
         success: if v.dark_mode { FALLBACK_SUCCESS_DARK } else { FALLBACK_SUCCESS_LIGHT },
         warn: v.warn_fg_color,
         error: v.error_fg_color,
+        on_error: v.selection.stroke.color,
         card: mix(v.panel_fill, text, CARD_LIFT),
         border: mix(v.panel_fill, text, BORDER_MIX),
         weak_text: v.weak_text_color(),
