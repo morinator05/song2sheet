@@ -6,8 +6,8 @@ use model::{PartFilter, Project, StaffKind};
 
 use super::{App, Discarding, Screen};
 use crate::screens::widgets::{
-    EDITOR_TITLE, PICKER_TITLE, SHEET_TITLE, caption, combo, ghost, header, icons::*, primary,
-    secondary, toggle,
+    EDITOR_TITLE, Icon, PICKER_TITLE, SHEET_TITLE, caption, combo, ghost, header, icon_button,
+    menu, primary, secondary, toggle,
 };
 use crate::shortcuts as keys;
 use crate::theme::{self, metrics};
@@ -20,14 +20,14 @@ impl App {
         let ctx = ui.ctx().clone();
         let tip = |s| ctx.format_shortcut(&s);
         ui.horizontal(|ui| {
-            if secondary(ui, &with(NEW_FILE, "New")).on_hover_text(tip(keys::NEW)).clicked() {
+            if icon_button(ui, Icon::New, "New").on_hover_text(tip(keys::NEW)).clicked() {
                 self.request(ui.ctx(), Discarding::New);
             }
-            if secondary(ui, &with(OPEN, "Open")).on_hover_text(tip(keys::OPEN)).clicked() {
+            if icon_button(ui, Icon::Open, "Open").on_hover_text(tip(keys::OPEN)).clicked() {
                 self.request(ui.ctx(), Discarding::Open);
             }
             self.recent_menu(ui);
-            if secondary(ui, &with(SAVE, "Save")).on_hover_text(tip(keys::SAVE)).clicked() {
+            if icon_button(ui, Icon::Save, "Save").on_hover_text(tip(keys::SAVE)).clicked() {
                 self.save_file(ui.ctx(), false);
             }
             if secondary(ui, "Save as").on_hover_text(tip(keys::SAVE_AS)).clicked() {
@@ -36,7 +36,7 @@ impl App {
             ui.separator();
             let undo = format!("Undo ({})", tip(keys::UNDO));
             if ui
-                .add_enabled_ui(self.history.can_undo(), |ui| ghost(ui, UNDO, &undo))
+                .add_enabled_ui(self.history.can_undo(), |ui| ghost(ui, Icon::Undo, &undo))
                 .inner
                 .clicked()
             {
@@ -44,7 +44,7 @@ impl App {
             }
             let redo = format!("Redo ({})", tip(keys::REDO));
             if ui
-                .add_enabled_ui(self.history.can_redo(), |ui| ghost(ui, REDO, &redo))
+                .add_enabled_ui(self.history.can_redo(), |ui| ghost(ui, Icon::Redo, &redo))
                 .inner
                 .clicked()
             {
@@ -61,7 +61,7 @@ impl App {
                 }
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.menu_button(with(KEYBOARD, "Shortcuts"), shortcut_list);
+                menu(ui, Icon::Keyboard, "Shortcuts", shortcut_list);
                 if self.doc.is_dirty() {
                     let warn = theme::palette(ui.ctx()).warn;
                     ui.label(RichText::new("Unsaved changes").color(warn));
@@ -85,7 +85,7 @@ impl App {
             combo(ui, "part_filter", &mut self.filter, &options).on_hover_text(PART_HINT);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let hint = ui.ctx().format_shortcut(&keys::EXPORT);
-                if primary(ui, &with(EXPORT, "Export PDF")).on_hover_text(hint).clicked() {
+                if primary(ui, Icon::Export, "Export PDF").on_hover_text(hint).clicked() {
                     self.export_pdf(ui.ctx());
                 }
             });
@@ -98,7 +98,7 @@ impl App {
     fn recent_menu(&mut self, ui: &mut egui::Ui) {
         let mut chosen = None;
         ui.add_enabled_ui(!self.recent.paths().is_empty(), |ui| {
-            ui.menu_button(with(RECENT, "Recent"), |ui| {
+            menu(ui, Icon::Recent, "Recent", |ui| {
                 for path in self.recent.paths() {
                     let name = crate::status::file_name(path);
                     if ui.button(name).on_hover_text(path.to_string_lossy()).clicked() {
@@ -107,7 +107,6 @@ impl App {
                     }
                 }
             })
-            .response
             .on_disabled_hover_text("No recent files yet");
         });
         if let Some(path) = chosen {

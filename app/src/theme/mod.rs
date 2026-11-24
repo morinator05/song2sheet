@@ -3,6 +3,7 @@
 //! and egui's defaults otherwise. Rules in `docs/DESIGN.md`.
 
 mod fonts;
+pub mod icon_theme;
 pub mod kde;
 pub mod metrics;
 

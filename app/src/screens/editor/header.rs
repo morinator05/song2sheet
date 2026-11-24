@@ -7,7 +7,7 @@ use model::{Segment, StaffKind, TimeSig};
 use super::commands;
 use super::cursor::Cursor;
 use crate::screens::widgets::{
-    NAME_FIELD_W, SECTION_NAME_HINT, SHORT_FIELD_W, TEMPO_LABEL, combo, danger, ghost, icons,
+    Icon, NAME_FIELD_W, SECTION_NAME_HINT, SHORT_FIELD_W, TEMPO_LABEL, combo, danger, ghost, menu,
     optional_bpm, toggle,
 };
 
@@ -37,10 +37,10 @@ pub fn section_settings(ui: &mut egui::Ui, seg: &mut Segment) {
         }
         ui.separator();
         ui.label(format!("Bars: {}", seg.bar_count()));
-        if ghost(ui, icons::REMOVE, "Remove the last bar").clicked() {
+        if ghost(ui, Icon::Remove, "Remove the last bar").clicked() {
             commands::remove_last_bar(seg);
         }
-        if ghost(ui, icons::ADD, "Add a bar").clicked() {
+        if ghost(ui, Icon::Add, "Add a bar").clicked() {
             commands::add_bar(seg);
         }
     });
@@ -63,12 +63,12 @@ pub fn staves(ui: &mut egui::Ui, seg: &mut Segment, cursor: &mut Cursor) {
                 egui::TextEdit::singleline(&mut staff.label).hint_text(staff.kind.short_name());
             ui.add(label.desired_width(SHORT_FIELD_W))
                 .on_hover_text("Staff label printed on the sheet");
-            if danger(ui, icons::DELETE, "Remove staff").clicked() {
+            if danger(ui, Icon::Delete, "Remove staff").clicked() {
                 remove = Some(i);
             }
             ui.separator();
         }
-        ui.menu_button(icons::with(icons::ADD, "Add staff"), |ui| {
+        menu(ui, Icon::Add, "Add staff", |ui| {
             for kind in StaffKind::ALL {
                 if ui.button(kind.name()).clicked() {
                     commands::add_staff(seg, kind);

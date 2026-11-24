@@ -39,7 +39,7 @@ A Cargo workspace; dependency versions live in `[workspace.dependencies]`.
 - `crates/raster`: draws a `Page` with `tiny-skia`. The app shows this image as its preview. Don't add a separate egui-native notation renderer.
 - `crates/pdf`: draws the `DisplayList` with `krilla`, via `draw_glyphs` and `glyph_run`, never `draw_text`.
 - `app/`: the `eframe`/`egui` binary. **UI rules are in `docs/DESIGN.md`; follow them.**
-  - `theme/`: fonts (Noto Sans + Phosphor icons), sizes (`metrics.rs`) and colours. `kde.rs` reads KDE's `kdeglobals` (light/dark + accent, re-read live). Screens take colours only from `theme::palette`.
+  - `theme/`: fonts (Noto Sans + Phosphor fallback icons), sizes (`metrics.rs`) and colours. `kde.rs` reads KDE's `kdeglobals` (light/dark + accent, re-read live). `icon_theme.rs` finds system theme icons (Breeze) and rasterizes them with `resvg`, coloured white for tinting. Screens take colours only from `theme::palette`.
   - `app/`: layout and navigation (`mod.rs`), top bar, status line and preview header (`chrome.rs`), file actions (`files.rs`).
   - `history` (undo/redo snapshots of `Project`), `shortcuts` (app-wide keys), `status` (fading message line), `recent` (the recent-files list, kept in eframe's app storage), `document` (file I/O; saves via a temporary file and detects unsaved changes by comparing against the last saved `Project`), `preview` (rerasterizes when the project, filter or width differs from the last render).
   - `screens/`: each `show` returns an optional `Nav` (open a section, go to Import or Sheet).

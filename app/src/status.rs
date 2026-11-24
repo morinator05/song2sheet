@@ -1,9 +1,9 @@
 //! The message line at the bottom of the window: the outcome of the last
 //! file action. Confirmations fade out; errors stay until replaced.
 
-use eframe::egui::{self, Color32, RichText};
+use eframe::egui;
 
-use crate::screens::widgets::icons;
+use crate::screens::widgets::{Icon, icons};
 use crate::theme;
 
 /// Seconds a confirmation stays visible.
@@ -57,11 +57,11 @@ impl Status {
         let now = ui.input(|i| i.time);
         let Some((text, kind)) = self.current(now) else { return };
         let p = theme::palette(ui.ctx());
-        let (icon, color): (&str, Color32) = match kind {
-            Kind::Success => (icons::SUCCESS, p.success),
-            Kind::Error => (icons::ERROR, p.error),
+        let (icon, color) = match kind {
+            Kind::Success => (Icon::Success, p.success),
+            Kind::Error => (Icon::Error, p.error),
         };
-        ui.label(RichText::new(icons::with(icon, text)).color(color));
+        icons::label(ui, icon, text, color);
         if kind == Kind::Success {
             ui.ctx().request_repaint_after_secs(SHOW_SECS as f32);
         }

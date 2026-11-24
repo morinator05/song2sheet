@@ -3,18 +3,25 @@
 
 use eframe::egui::{self, Button, Response, RichText, TextStyle, TextWrapMode};
 
-use crate::theme;
+use super::icons::{self, Icon};
+use crate::theme::{self, metrics};
 
 /// The one main action of an area, filled with the accent colour.
-pub fn primary(ui: &mut egui::Ui, text: &str) -> Response {
+pub fn primary(ui: &mut egui::Ui, icon: Icon, text: &str) -> Response {
     let p = theme::palette(ui.ctx());
-    let button = Button::new(RichText::new(text).color(p.on_accent)).fill(p.accent);
+    let button = icons::button(ui, Some(icon), text, Some(p.on_accent)).fill(p.accent);
     ui.add(button.wrap_mode(TextWrapMode::Extend))
 }
 
 /// [`primary`] that can be disabled; `why` explains a disabled button.
-pub fn primary_enabled(ui: &mut egui::Ui, enabled: bool, text: &str, why: &str) -> Response {
-    let r = ui.add_enabled_ui(enabled, |ui| primary(ui, text)).inner;
+pub fn primary_enabled(
+    ui: &mut egui::Ui,
+    enabled: bool,
+    icon: Icon,
+    text: &str,
+    why: &str,
+) -> Response {
+    let r = ui.add_enabled_ui(enabled, |ui| primary(ui, icon, text)).inner;
     if enabled { r } else { r.on_disabled_hover_text(why) }
 }
 
@@ -23,24 +30,56 @@ pub fn secondary(ui: &mut egui::Ui, text: &str) -> Response {
     ui.add(Button::new(text).wrap_mode(TextWrapMode::Extend))
 }
 
-/// A frameless button for row tools; `tooltip` says what it does.
-pub fn ghost(ui: &mut egui::Ui, text: &str, tooltip: &str) -> Response {
-    let button = Button::new(text).frame_when_inactive(false).wrap_mode(TextWrapMode::Extend);
-    ui.add(button).on_hover_text(tooltip)
+/// An ordinary button with an icon before its text.
+pub fn icon_button(ui: &mut egui::Ui, icon: Icon, text: &str) -> Response {
+    ui.add(icons::button(ui, Some(icon), text, None).wrap_mode(TextWrapMode::Extend))
+}
+
+/// A frameless icon button for row tools; `tooltip` says what it does.
+pub fn ghost(ui: &mut egui::Ui, icon: Icon, tooltip: &str) -> Response {
+    ghost_in(ui, icon, tooltip, None)
+}
+
+fn ghost_in(
+    ui: &mut egui::Ui,
+    icon: Icon,
+    tooltip: &str,
+    color: Option<egui::Color32>,
+) -> Response {
+    let button = icons::button(ui, Some(icon), "", color).frame_when_inactive(false);
+    ui.scope(|ui| {
+        // Icon-only buttons sit close together.
+        ui.spacing_mut().button_padding = egui::vec2(metrics::SPACE_XS, metrics::SPACE_XS);
+        ui.add(button)
+    })
+    .inner
+    .on_hover_text(tooltip)
 }
 
 /// A [`ghost`] button for destructive actions: turns red under the pointer.
-pub fn danger(ui: &mut egui::Ui, text: &str, tooltip: &str) -> Response {
+pub fn danger(ui: &mut egui::Ui, icon: Icon, tooltip: &str) -> Response {
     let error = theme::palette(ui.ctx()).error;
+    // The button gets the next id; its hover state of the last frame
+    // decides the icon colour.
+    let hovered = ui.ctx().read_response(ui.next_auto_id()).is_some_and(|r| r.hovered());
     ui.scope(|ui| {
         let w = &mut ui.visuals_mut().widgets;
-        w.hovered.fg_stroke.color = error;
-        w.active.fg_stroke.color = error;
         w.hovered.bg_stroke.color = error;
         w.active.bg_stroke.color = error;
-        ghost(ui, text, tooltip)
+        ghost_in(ui, icon, tooltip, hovered.then_some(error))
     })
     .inner
+}
+
+/// A menu opened by a button with an icon and text.
+pub fn menu<R>(
+    ui: &mut egui::Ui,
+    icon: Icon,
+    text: &str,
+    add_contents: impl FnOnce(&mut egui::Ui) -> R,
+) -> Response {
+    let button = icons::button(ui, Some(icon), text, None).wrap_mode(TextWrapMode::Extend);
+    egui::containers::menu::MenuButton::from_button(button).ui(ui, add_contents).0
 }
 
 /// Text on a red button.
