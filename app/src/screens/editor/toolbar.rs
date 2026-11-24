@@ -2,12 +2,12 @@
 //! selected beat's duration. Hints come from the key tables in `keys`.
 
 use eframe::egui;
-use model::{Segment, StaffKind};
+use model::{NoteValue, Segment, StaffKind};
 
 use super::commands::Command;
 use super::cursor::Cursor;
 use super::keys::{self, DRUM_KEYS, DURATION_KEYS, is_fretted, key_label};
-use crate::screens::widgets::{group_label, secondary, toggle};
+use crate::screens::widgets::{group_label, hint, secondary, toggle};
 
 /// Shows the toolbar; returns the command of a clicked button.
 pub fn show(ui: &mut egui::Ui, seg: &Segment, cursor: &Cursor) -> Option<Command> {
@@ -15,9 +15,9 @@ pub fn show(ui: &mut egui::Ui, seg: &Segment, cursor: &Cursor) -> Option<Command
     let staff = seg.staves.get(cursor.staff)?;
     let kind = staff.kind;
     let d = beat.duration;
-    let key_hint = |key| format!("Key {}", key_label(key));
+    let key_hint = |what: &str, key| hint(what, key_label(key));
     let ctx = ui.ctx().clone();
-    let shortcut_hint = |s| ctx.format_shortcut(&s);
+    let shortcut_hint = |what: &str, s| hint(what, ctx.format_shortcut(&s));
     let mut clicked = None;
     // A toggle shows its state; an action (`on == None`) is a plain button.
     // `cmd` is `None` for a button that does nothing when clicked.
@@ -34,57 +34,95 @@ pub fn show(ui: &mut egui::Ui, seg: &Segment, cursor: &Cursor) -> Option<Command
     ui.horizontal_wrapped(|ui| {
         group_label(ui, "Duration");
         for (key, value, label) in DURATION_KEYS {
-            let hint = if is_fretted(kind) {
-                format!("{} / {}", key_label(keys::LONGER), key_label(keys::SHORTER))
+            let name = value_name(value);
+            let tip = if is_fretted(kind) {
+                let keys = format!("{} / {}", key_label(keys::LONGER), key_label(keys::SHORTER));
+                hint(&format!("{name}; longer / shorter"), keys)
             } else {
-                key_hint(key)
+                key_hint(name, key)
             };
-            button(ui, Some(d.value == value), label, &hint, Some(Command::Value(value)));
+            button(ui, Some(d.value == value), label, &tip, Some(Command::Value(value)));
         }
-        button(ui, Some(d.dots > 0), "Dot", &key_hint(keys::DOT), Some(Command::ToggleDot));
+        button(
+            ui,
+            Some(d.dots > 0),
+            "Dot",
+            &key_hint("Dotted", keys::DOT),
+            Some(Command::ToggleDot),
+        );
         let triplet = d.valid_tuplet().is_some();
         button(
             ui,
             Some(triplet),
             "Triplet",
-            &shortcut_hint(keys::TRIPLET),
+            &shortcut_hint("Triplet", keys::TRIPLET),
             Some(Command::ToggleTriplet),
         );
         ui.separator();
         group_label(ui, "Beat");
-        button(ui, Some(beat.accent), "Accent", &key_hint(keys::ACCENT), Some(Command::Accent));
+        button(
+            ui,
+            Some(beat.accent),
+            "Accent",
+            &key_hint("Accent", keys::ACCENT),
+            Some(Command::Accent),
+        );
         if kind != StaffKind::Drums && !staff.has_tab() {
-            button(ui, Some(beat.slash), "Slash", &key_hint(keys::SLASH), Some(Command::Slash));
+            button(
+                ui,
+                Some(beat.slash),
+                "Slash",
+                &key_hint("Rhythm slash", keys::SLASH),
+                Some(Command::Slash),
+            );
         }
         // On fretted staves 0 types fret 0, so only Delete makes a rest.
         let rest_hint = if is_fretted(kind) {
-            keys::CLEAR_KEYS.map(key_label).join(" / ")
+            hint("Make a rest", keys::CLEAR_KEYS.map(key_label).join(" / "))
         } else {
-            key_hint(keys::REST)
+            key_hint("Make a rest", keys::REST)
         };
         button(ui, None, "Rest", &rest_hint, Some(Command::Clear));
         let repeat_hint =
-            format!("Copy this bar into the next ({})", shortcut_hint(keys::REPEAT_BAR));
+            shortcut_hint("Copy this bar of this staff over the next bar", keys::REPEAT_BAR);
         button(ui, None, "Repeat bar", &repeat_hint, Some(Command::RepeatBar));
     });
     if kind == StaffKind::Drums {
         ui.horizontal_wrapped(|ui| {
             group_label(ui, "Voice");
-            let hint = format!("{}: switch voice", key_hint(keys::VOICE));
+            let tip = key_hint("Switch between hands and feet", keys::VOICE);
             for (voice, label) in [(0, "Hands ↑"), (1, "Feet ↓")] {
                 let on = cursor.voice == voice;
                 // Clicking the active voice keeps it.
-                button(ui, Some(on), label, &hint, (!on).then_some(Command::ToggleVoice));
+                button(ui, Some(on), label, &tip, (!on).then_some(Command::ToggleVoice));
             }
             ui.separator();
             group_label(ui, "Drums");
             for (key, hit) in DRUM_KEYS {
-                let on = beat.drums.contains(&hit);
-                button(ui, Some(on), hit.name(), &key_hint(key), Some(Command::Drum(hit)));
+                let on = super::drums::has_hit(seg, cursor, hit);
+                button(
+                    ui,
+                    Some(on),
+                    hit.name(),
+                    &key_hint(hit.name(), key),
+                    Some(Command::Drum(hit)),
+                );
             }
         });
     }
     clicked
+}
+
+/// A note value's name for tooltips.
+fn value_name(value: NoteValue) -> &'static str {
+    match value {
+        NoteValue::Whole => "Whole note",
+        NoteValue::Half => "Half note",
+        NoteValue::Quarter => "Quarter note",
+        NoteValue::Eighth => "Eighth note",
+        NoteValue::Sixteenth => "16th note",
+        NoteValue::ThirtySecond => "32nd note",
+    }
 }
 
 /// Lines of the keyboard legend, built from the same tables.
@@ -126,6 +164,10 @@ pub fn legend(ctx: &egui::Context) -> Vec<String> {
             super::commands::MAX_FRET,
             key_label(keys::SLASH),
         ),
-        format!("Drums: {} hands/feet voice · {}", key_label(keys::VOICE), drums.join(" · ")),
+        format!(
+            "Drums: {} hands/feet voice (kick and hi-hat pedal always go to the feet) · {}",
+            key_label(keys::VOICE),
+            drums.join(" · ")
+        ),
     ]
 }

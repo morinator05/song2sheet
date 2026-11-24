@@ -4,19 +4,16 @@ pub mod buttons;
 pub mod icons;
 pub mod layout;
 
-use eframe::egui::{self, Key};
+use eframe::egui;
 
 pub use crate::theme::metrics::BLOCK_GAP;
-pub use buttons::{
-    combo, danger, ghost, icon_button, menu, primary, primary_enabled, secondary, toggle,
-};
+pub use buttons::{combo, danger, ghost, icon_button, menu, primary_enabled, secondary, toggle};
 pub use icons::Icon;
-pub use layout::{caption, card, card_frame, group_label, header};
+pub use layout::{
+    caption, card, card_frame, clickable, empty_state, group_label, header, open_card_frame,
+};
 
-/// Width of single-line name fields (sections, sheet row labels).
-pub const NAME_FIELD_W: f32 = 160.0;
-/// Width of short text fields (staff labels, chord symbols).
-pub const SHORT_FIELD_W: f32 = 70.0;
+pub use crate::theme::metrics::{NAME_FIELD_W, SHORT_FIELD_W};
 
 /// Placeholder of section name fields.
 pub const SECTION_NAME_HINT: &str = "e.g. Verse";
@@ -55,11 +52,12 @@ pub fn image_widths(ui: &egui::Ui) -> (f32, f32) {
     (width, px)
 }
 
-/// Checkbox + BPM field for an optional tempo.
-pub fn optional_bpm(ui: &mut egui::Ui, tempo: &mut Option<u32>) {
+/// Checkbox (labelled `label`, may be empty) + BPM field for an optional
+/// tempo.
+pub fn optional_bpm(ui: &mut egui::Ui, label: &str, tempo: &mut Option<u32>) {
     ui.horizontal(|ui| {
         let mut on = tempo.is_some();
-        if ui.checkbox(&mut on, "").on_hover_text("Show a tempo").changed() {
+        if ui.checkbox(&mut on, label).on_hover_text("Print a tempo").changed() {
             *tempo = on.then_some(DEFAULT_BPM);
         }
         if let Some(bpm) = tempo {
@@ -74,10 +72,27 @@ pub fn optional_bpm(ui: &mut egui::Ui, tempo: &mut Option<u32>) {
     });
 }
 
+/// Tooltip of a control with a shortcut: "What it does (Shortcut)".
+pub fn hint(what: &str, shortcut: impl std::fmt::Display) -> String {
+    format!("{what} ({shortcut})")
+}
+
+/// Whether a dialog or a menu (popup, open combo box) is open; keys then
+/// belong to it, not to the screen behind.
+pub fn dialog_or_menu_open(ctx: &egui::Context) -> bool {
+    ctx.memory(|m| m.top_modal_layer().is_some()) || egui::Popup::is_any_open(ctx)
+}
+
+/// Whether plain keys may drive a screen: no dialog, menu or text field
+/// has them.
+pub fn keys_free(ctx: &egui::Context) -> bool {
+    !dialog_or_menu_open(ctx) && !ctx.text_edit_focused()
+}
+
 /// A modal yes/no question about discarding something; the confirm
-/// button is red. Returns `Some(true)` when confirmed (button or
-/// Enter), `Some(false)` when cancelled (button, Esc or a click outside)
-/// and `None` while still open.
+/// button is red. Returns `Some(true)` when confirmed (only by clicking it:
+/// a habitual Enter must not destroy work), `Some(false)` when cancelled
+/// (button, Esc or a click outside) and `None` while still open.
 pub fn confirm(
     ctx: &egui::Context,
     id: egui::Id,
@@ -85,11 +100,6 @@ pub fn confirm(
     confirm_label: &str,
 ) -> Option<bool> {
     let mut choice = None;
-    // Enter counts only once the dialog was already open: the key press
-    // that opened it must not also confirm it.
-    let seen = id.with("seen");
-    let was_open = ctx.data(|d| d.get_temp::<bool>(seen)).unwrap_or(false);
-    ctx.data_mut(|d| d.insert_temp(seen, true));
     let modal = egui::Modal::new(id).show(ctx, |ui| {
         ui.label(question);
         ui.add_space(BLOCK_GAP);
@@ -101,15 +111,9 @@ pub fn confirm(
                 choice = Some(false);
             }
         });
-        if was_open && ui.input(|i| i.key_pressed(Key::Enter)) {
-            choice = Some(true);
-        }
     });
     if choice.is_none() && modal.should_close() {
         choice = Some(false);
-    }
-    if choice.is_some() {
-        ctx.data_mut(|d| d.remove::<bool>(seen));
     }
     choice
 }

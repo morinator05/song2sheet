@@ -45,12 +45,17 @@ pub enum Command {
 pub enum Refused {
     /// The chosen duration would cross the barline.
     DoesNotFit,
+    /// A drum hit's own voice has a note sounding across this beat.
+    VoiceBusy,
 }
 
 impl std::fmt::Display for Refused {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Refused::DoesNotFit => write!(f, "That duration doesn't fit in the bar here."),
+            Refused::VoiceBusy => {
+                write!(f, "A longer note in the other voice sounds here; shorten it first.")
+            }
         }
     }
 }
@@ -84,7 +89,17 @@ pub fn apply(
         Value(_) | ToggleDot | ToggleTriplet | Longer | Shorter => {
             result = change_duration(cmd, seg, cursor, input)
         }
-        Drum(hit) => toggle_drum(seg, cursor, hit),
+        Drum(hit) => {
+            // On drum staves each hit goes to its own voice (hands or feet).
+            let drums = seg.staves.get(cursor.staff).is_some_and(|s| s.kind == StaffKind::Drums);
+            if !drums {
+                toggle_drum(seg, cursor, hit);
+            } else if let Some(at) = super::drums::target(seg, cursor, hit) {
+                toggle_drum(seg, &at, hit);
+            } else {
+                result = Err(Refused::VoiceBusy);
+            }
+        }
         Slash => edit_beat(seg, cursor, |b| b.slash = !b.slash),
         FretDigit(d) => type_fret(seg, cursor, input, d, now),
         Clear => clear(seg, cursor),

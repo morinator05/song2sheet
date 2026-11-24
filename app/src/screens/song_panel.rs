@@ -5,8 +5,8 @@ use model::{Project, Segment, SegmentId, SheetEntry};
 
 use super::Nav;
 use super::widgets::{
-    BLOCK_GAP, Icon, TEMPO_LABEL, caption, card, card_frame, confirm, count, danger, ghost, header,
-    icon_button, optional_bpm,
+    BLOCK_GAP, Icon, TEMPO_LABEL, caption, card, card_frame, clickable, confirm, count, danger,
+    empty_state, ghost, header, icon_button, open_card_frame, optional_bpm,
 };
 use crate::theme;
 
@@ -22,13 +22,13 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -
             card(ui, |ui| song_details(ui, project));
             ui.add_space(BLOCK_GAP);
             let nav = header(ui, "Sections", |ui| {
-                if icon_button(ui, Icon::Add, "New")
+                if icon_button(ui, Icon::Add, "New section")
                     .on_hover_text("New empty section, opened in the editor")
                     .clicked()
                 {
                     return Some(Nav::Edit(new_section(project)));
                 }
-                if icon_button(ui, Icon::Import, "Import")
+                if icon_button(ui, Icon::Import, "Import score")
                     .on_hover_text("Take sections from a MusicXML score")
                     .clicked()
                 {
@@ -62,7 +62,7 @@ fn song_details(ui: &mut egui::Ui, project: &mut Project) {
             ui.end_row();
         }
         ui.label(TEMPO_LABEL);
-        optional_bpm(ui, &mut meta.tempo);
+        optional_bpm(ui, "", &mut meta.tempo);
         ui.end_row();
     });
     ui.label("Notes");
@@ -74,7 +74,8 @@ fn song_details(ui: &mut egui::Ui, project: &mut Project) {
 
 fn section_pool(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -> Option<Nav> {
     if project.segments.is_empty() {
-        caption(ui, "No sections yet. Create one with New, or import a score.");
+        let hint = "Create one with New section, or take them from a score with Import score.";
+        empty_state(ui, "No sections yet.", Some(hint), |_| {});
     }
     let mut nav = None;
     let mut add: Option<SegmentId> = None;
@@ -83,38 +84,39 @@ fn section_pool(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId
     let p = theme::palette(ui.ctx());
     for seg in &mut project.segments {
         let uses = project.sheet.iter().filter(|e| e.segment == seg.id).count();
-        let mut frame = card_frame(&p).inner_margin(theme::metrics::SPACE_XS);
-        if open == Some(seg.id) {
-            frame = frame
-                .fill(theme::mix(p.card, p.accent, theme::OPEN_TINT))
-                .stroke((theme::metrics::HAIRLINE, p.accent));
-        }
-        frame.show(ui, |ui| {
-            // One row: tools from the right, the name field takes the rest.
-            let size = egui::vec2(ui.available_width(), ui.spacing().interact_size.y);
-            let layout = egui::Layout::right_to_left(egui::Align::Center);
-            ui.allocate_ui_with_layout(size, layout, |ui| {
-                if danger(ui, Icon::Delete, "Delete section (and its sheet rows)").clicked() {
-                    remove = Some(seg.id);
-                }
-                if ghost(ui, Icon::Duplicate, "Duplicate as a new section").clicked() {
-                    duplicate = Some(seg.id);
-                }
-                if ghost(ui, Icon::AddToSheet, "Add to the end of the sheet").clicked() {
-                    add = Some(seg.id);
-                }
-                if ghost(ui, Icon::Edit, "Edit notation").clicked() {
-                    nav = Some(Nav::Edit(seg.id));
-                }
-                let used = match uses {
-                    0 => "unused".to_string(),
-                    n => format!("×{n}"),
-                };
-                caption(ui, used).on_hover_text("How often the sheet uses this section");
-                let name = egui::TextEdit::singleline(&mut seg.name).hint_text("Name");
-                ui.add(name.desired_width(ui.available_width()));
-            });
+        let frame = if open == Some(seg.id) { open_card_frame(&p) } else { card_frame(&p) };
+        let frame = frame.inner_margin(theme::metrics::ROW_CARD_MARGIN);
+        let row = clickable(ui, |ui| {
+            frame.show(ui, |ui| {
+                // One row: tools from the right, the name field takes the rest.
+                let size = egui::vec2(ui.available_width(), ui.spacing().interact_size.y);
+                let layout = egui::Layout::right_to_left(egui::Align::Center);
+                ui.allocate_ui_with_layout(size, layout, |ui| {
+                    if danger(ui, Icon::Delete, "Delete section (and its sheet rows)").clicked() {
+                        remove = Some(seg.id);
+                    }
+                    if ghost(ui, Icon::Duplicate, "Duplicate as a new section").clicked() {
+                        duplicate = Some(seg.id);
+                    }
+                    if ghost(ui, Icon::AddToSheet, "Add to the end of the sheet").clicked() {
+                        add = Some(seg.id);
+                    }
+                    if ghost(ui, Icon::Edit, "Edit notation").clicked() {
+                        nav = Some(Nav::Edit(seg.id));
+                    }
+                    let used = match uses {
+                        0 => "unused".to_string(),
+                        n => format!("×{n}"),
+                    };
+                    caption(ui, used).on_hover_text("How often the sheet uses this section");
+                    let name = egui::TextEdit::singleline(&mut seg.name).hint_text("Name");
+                    ui.add(name.desired_width(ui.available_width()));
+                });
+            })
         });
+        if row.response.on_hover_text("Double-click to edit").double_clicked() {
+            nav = Some(Nav::Edit(seg.id));
+        }
     }
     if let Some(id) = add {
         project.sheet.push(SheetEntry::new(id));

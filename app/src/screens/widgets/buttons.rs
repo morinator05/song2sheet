@@ -82,13 +82,10 @@ pub fn menu<R>(
     egui::containers::menu::MenuButton::from_button(button).ui(ui, add_contents).0
 }
 
-/// Text on a red button.
-const ON_DANGER: egui::Color32 = egui::Color32::WHITE;
-
 /// A red button confirming that something is destroyed.
 pub fn danger_filled(ui: &mut egui::Ui, text: &str) -> Response {
-    let error = theme::palette(ui.ctx()).error;
-    let button = Button::new(RichText::new(text).color(ON_DANGER)).fill(error);
+    let p = theme::palette(ui.ctx());
+    let button = Button::new(RichText::new(text).color(p.on_error)).fill(p.error);
     ui.add(button.wrap_mode(TextWrapMode::Extend))
 }
 

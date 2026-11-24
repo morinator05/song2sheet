@@ -3,8 +3,10 @@
 
 mod commands;
 mod cursor;
+mod drums;
 mod header;
 mod keys;
+mod position;
 mod toolbar;
 
 use eframe::egui;
@@ -13,16 +15,14 @@ use model::{Project, Segment, SegmentId, StaffKind, edit};
 use super::Nav;
 use super::notation_view::{Highlight, NotationView};
 use super::widgets::{
-    BLOCK_GAP, EDITOR_TITLE, Icon, SHEET_TITLE, SHORT_FIELD_W, caption, card, header, icon_button,
-    icons, menu,
+    BLOCK_GAP, EDITOR_TITLE, Icon, SHORT_FIELD_W, caption, card, empty_state, header, hint,
+    icon_button, icons, keys_free, menu,
 };
+use crate::status::{self, Kind};
 use crate::theme;
 use commands::{Command, Input};
 pub use cursor::Cursor;
 use keys::Action;
-
-/// Widest the keyboard legend popup gets before wrapping.
-const LEGEND_MAX_W: f32 = 560.0;
 
 #[derive(Default)]
 pub struct EditorState {
@@ -41,6 +41,8 @@ pub struct EditorState {
     focus_chord: bool,
     /// Why the last command did nothing, shown until the next command.
     message: Option<String>,
+    /// The cursor moved: scroll it into view.
+    reveal: bool,
 }
 
 impl EditorState {
@@ -72,17 +74,39 @@ impl EditorState {
         self.chord_was_editing = false;
     }
 
-    fn apply(&mut self, cmd: Command, seg: &mut Segment, now: f64) {
+    /// Writes a chord symbol that is still being typed into its beat, so
+    /// saving or exporting doesn't miss it.
+    pub fn commit_chord(&mut self, project: &mut Project) {
+        if !self.chord_was_editing {
+            return;
+        }
+        if let Some(seg) = self.segment.and_then(|id| project.segment_mut(id)) {
+            write_chord(seg, &self.chord_target, &self.chord_text);
+        }
+    }
+
+    /// Runs `cmd`; a refusal shows next to the chord field and in the
+    /// status line.
+    fn apply(&mut self, ctx: &egui::Context, cmd: Command, seg: &mut Segment) {
+        let now = ctx.input(|i| i.time);
         let result = commands::apply(cmd, seg, &mut self.cursor, &mut self.input, now);
         self.message = result.err().map(|e| e.to_string());
+        if let Some(message) = &self.message {
+            status::post(ctx, Kind::Warning, message.clone());
+        }
+        self.reveal = true;
     }
 }
 
 pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut EditorState) -> Option<Nav> {
     let Some(seg) = state.segment.and_then(|id| project.segment_mut(id)) else {
         header(ui, EDITOR_TITLE, |_| {});
-        caption(ui, "Choose a section to edit with its edit button in the Sections list.");
-        return None;
+        let hint = "Or open one with its edit button in the Sections list.";
+        return empty_state(ui, "No section is open.", Some(hint), |ui| {
+            icon_button(ui, Icon::Add, "New section")
+                .clicked()
+                .then(|| Nav::Edit(super::song_panel::new_section(project)))
+        });
     };
     state.cursor.clamp(seg);
     let title = if seg.name.trim().is_empty() {
@@ -92,13 +116,13 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut EditorState) -
     };
     let back = header(ui, &title, |ui| {
         menu(ui, Icon::Keyboard, "Shortcuts", |ui| {
-            ui.set_max_width(LEGEND_MAX_W);
+            ui.set_max_width(theme::metrics::POPUP_TEXT_MAX_W);
             for line in toolbar::legend(ui.ctx()) {
                 ui.label(line);
             }
         });
-        let back = format!("Back to the sheet ({})", crate::shortcuts::BACK.name());
-        icon_button(ui, Icon::Back, SHEET_TITLE).on_hover_text(back).clicked()
+        let back = hint("Back to the sheet", crate::shortcuts::BACK.name());
+        icon_button(ui, Icon::Back, "Back to sheet").on_hover_text(back).clicked()
     });
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
         card(ui, |ui| {
@@ -109,16 +133,29 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut EditorState) -
         ui.add_space(BLOCK_GAP);
         card(ui, |ui| {
             if let Some(cmd) = toolbar::show(ui, seg, &state.cursor) {
-                state.apply(cmd, seg, ui.input(|i| i.time));
+                state.apply(ui.ctx(), cmd, seg);
             }
         });
         ui.add_space(BLOCK_GAP);
-        if let Some(b) = state.view.show(ui, seg, Highlight::Cursor(&state.cursor)) {
-            state.cursor =
-                Cursor { staff: b.staff, bar: b.bar, voice: b.voice, beat: b.beat, ..state.cursor };
-        }
-        ui.add_space(BLOCK_GAP);
-        beat_details(ui, seg, state);
+        // The notation and the details of the beat under the cursor.
+        card(ui, |ui| {
+            if let Some(b) = state.view.show(ui, seg, Highlight::Cursor(&state.cursor)) {
+                state.cursor = Cursor {
+                    staff: b.staff,
+                    bar: b.bar,
+                    voice: b.voice,
+                    beat: b.beat,
+                    ..state.cursor
+                };
+            }
+            if std::mem::take(&mut state.reveal)
+                && let Some(rect) = state.view.highlight_rect()
+            {
+                ui.scroll_to_rect(rect, None);
+            }
+            ui.add_space(theme::metrics::SPACE_S);
+            beat_details(ui, seg, state);
+        });
     });
     handle_keys(ui, seg, state);
     back.then_some(Nav::Sheet)
@@ -137,7 +174,7 @@ fn beat_details(ui: &mut egui::Ui, seg: &mut Segment, state: &mut EditorState) {
     let mut done = false;
     let warn = theme::palette(ui.ctx()).warn;
     ui.horizontal(|ui| {
-        caption(ui, format!("Bar {} · beat {} · voice {}", c.bar + 1, c.beat + 1, c.voice + 1));
+        caption(ui, position::caption(seg, &c));
         ui.separator();
         ui.label("Chord");
         let hint = ui.ctx().format_shortcut(&keys::CHORD_SYMBOL);
@@ -155,26 +192,31 @@ fn beat_details(ui: &mut egui::Ui, seg: &mut Segment, state: &mut EditorState) {
     // Esc leaves the field without keeping the typed text.
     let cancelled = ui.input(|i| i.key_pressed(egui::Key::Escape));
     if done && !cancelled {
-        if let Some(beat) = state.chord_target.beat_mut(seg) {
-            beat.chord = Some(state.chord_text.trim().to_string()).filter(|t| !t.is_empty());
-        }
+        write_chord(seg, &state.chord_target, &state.chord_text);
         if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-            // Back to note input on the next beat, like MuseScore.
-            state.apply(Command::Right, seg, ui.input(|i| i.time));
+            // On to the next beat, still typing chords (Esc stops).
+            state.apply(ui.ctx(), Command::Right, seg);
+            state.focus_chord = true;
         }
     }
 }
 
+/// Sets the chord symbol of the beat at `at` (empty text removes it).
+fn write_chord(seg: &mut Segment, at: &Cursor, text: &str) {
+    if let Some(beat) = at.beat_mut(seg) {
+        beat.chord = Some(text.trim().to_string()).filter(|t| !t.is_empty());
+    }
+}
+
 fn handle_keys(ui: &egui::Ui, seg: &mut Segment, state: &mut EditorState) {
-    let dialog_open = ui.ctx().memory(|m| m.top_modal_layer().is_some());
-    if ui.ctx().text_edit_focused() || dialog_open {
-        return; // the keys belong to a text field or dialog
+    if !keys_free(ui.ctx()) {
+        return; // the keys belong to a text field, menu or dialog
     }
     let kind = seg.staves.get(state.cursor.staff).map_or(StaffKind::Drums, |s| s.kind);
-    let (events, now) = ui.input(|i| (i.events.clone(), i.time));
+    let events = ui.input(|i| i.events.clone());
     for action in keys::actions(&events, kind) {
         match action {
-            Action::Edit(cmd) => state.apply(cmd, seg, now),
+            Action::Edit(cmd) => state.apply(ui.ctx(), cmd, seg),
             Action::ChordSymbol => state.focus_chord = true,
         }
     }

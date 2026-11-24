@@ -15,6 +15,11 @@ pub struct Preview {
 }
 
 impl Preview {
+    /// Pages of the last rendered sheet.
+    pub fn page_count(&self) -> usize {
+        self.pages.len()
+    }
+
     /// Shows all pages scaled to the available width.
     pub fn show(&mut self, ui: &mut egui::Ui, project: &Project, filter: PartFilter) {
         let (width, px_width) = image_widths(ui);

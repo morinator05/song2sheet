@@ -7,15 +7,15 @@ use model::{PartComment, Project, SegmentId, SheetEntry};
 use super::Nav;
 use super::song_panel::new_section;
 use super::widgets::{
-    BLOCK_GAP, Icon, NAME_FIELD_W, SHEET_TITLE, caption, card_frame, combo, count, danger, ghost,
-    header, icon_button, icons, staff_kind_options,
+    Icon, NAME_FIELD_W, SHEET_TITLE, caption, card_frame, clickable, combo, count, danger,
+    dialog_or_menu_open, empty_state, ghost, header, icon_button, icons, open_card_frame,
+    staff_kind_options,
 };
+use crate::shortcuts;
 use crate::theme::{self, metrics};
 
 /// Largest repeat count offered for a row.
 const MAX_REPEAT: u32 = 32;
-/// How strongly the dragged row is tinted with the accent.
-const DRAG_TINT: f32 = 0.12;
 
 enum RowAction {
     Move { from: usize, to: usize },
@@ -27,26 +27,30 @@ enum RowAction {
 /// Shows the sheet. `open` is the section shown in the editor, if any.
 pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -> Option<Nav> {
     let rows = project.sheet.len();
-    header(ui, SHEET_TITLE, |ui| {
-        caption(ui, format!("{} · drag a row by its handle to reorder", count(rows, "row")));
-    });
+    header(ui, SHEET_TITLE, |_| {});
     if project.sheet.is_empty() {
-        return empty_state(ui, project);
+        return empty_sheet(ui, project);
     }
+    caption(ui, count(rows, "row"));
     let sections: Vec<(SegmentId, String)> =
         project.segments.iter().map(|s| (s.id, s.name.clone())).collect();
     let mut action = None;
     let p = theme::palette(ui.ctx());
-    let dragging = egui::DragAndDrop::payload::<usize>(ui.ctx()).map(|i| *i);
+    keyboard_move(ui, &mut project.sheet);
+    let mut focused_row = None;
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
         for (i, entry) in project.sheet.iter_mut().enumerate() {
-            let mut frame = card_frame(&p);
-            if open == Some(entry.segment) {
-                frame = frame.fill(theme::mix(p.card, p.accent, theme::OPEN_TINT));
-            } else if dragging == Some(i) {
-                frame = frame.fill(theme::mix(p.card, p.accent, DRAG_TINT));
+            let frame =
+                if open == Some(entry.segment) { open_card_frame(&p) } else { card_frame(&p) };
+            let response =
+                clickable(ui, |ui| frame.show(ui, |ui| row(ui, i, entry, &sections, &mut action)))
+                    .response;
+            if response.double_clicked() {
+                action = Some(RowAction::Edit(entry.segment));
             }
-            let response = frame.show(ui, |ui| row(ui, i, entry, &sections, &mut action)).response;
+            if has_focus_inside(ui, response.rect) {
+                focused_row = Some(i);
+            }
             if let Some(from) = response.dnd_hover_payload::<usize>() {
                 // The dropped row takes this row's place: show where it lands.
                 let r = response.rect;
@@ -58,6 +62,7 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -
             }
         }
     });
+    ui.data_mut(|d| d.insert_temp(focused_row_id(ui), focused_row));
     match action {
         Some(RowAction::Move { from, to }) => move_row(&mut project.sheet, from, to),
         Some(RowAction::Duplicate(i)) => {
@@ -73,27 +78,77 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -
     None
 }
 
-/// What to do on an empty sheet, with the two ways to start.
-fn empty_state(ui: &mut egui::Ui, project: &mut Project) -> Option<Nav> {
-    ui.add_space(BLOCK_GAP);
-    let mut nav = None;
-    ui.vertical_centered(|ui| {
-        if project.segments.is_empty() {
-            ui.label("Start with a new section, or import sections from a score.");
-            ui.add_space(metrics::SPACE_S);
-            ui.horizontal(|ui| {
-                if icon_button(ui, Icon::Add, "New section").clicked() {
-                    nav = Some(Nav::Edit(new_section(project)));
-                }
-                if icon_button(ui, Icon::Import, "Import a score").clicked() {
-                    nav = Some(Nav::Import);
-                }
-            });
-        } else {
-            ui.label("Add sections to the sheet with the \"Add to the end of the sheet\" button in the Sections list.");
+fn focused_row_id(ui: &egui::Ui) -> egui::Id {
+    ui.scope_id().with("focused_sheet_row")
+}
+
+/// Id of a row's label field (the same from any `Ui`), so focus can
+/// follow a moved row.
+fn label_id(index: usize) -> egui::Id {
+    egui::Id::unique("sheet_row_label").with(index)
+}
+
+/// Whether the widget with keyboard focus lies inside `rect`.
+fn has_focus_inside(ui: &egui::Ui, rect: egui::Rect) -> bool {
+    let focused = ui.memory(|m| m.focused());
+    focused.and_then(|id| ui.ctx().read_response(id)).is_some_and(|r| rect.contains_rect(r.rect))
+}
+
+/// Alt+Up/Down move the row whose field has focus (found last frame);
+/// the focus moves along to the row's label field.
+fn keyboard_move(ui: &mut egui::Ui, sheet: &mut Vec<SheetEntry>) {
+    if dialog_or_menu_open(ui.ctx()) {
+        return;
+    }
+    let Some(i) = ui.data(|d| d.get_temp::<Option<usize>>(focused_row_id(ui))).flatten() else {
+        return;
+    };
+    let pressed = |ui: &mut egui::Ui, s| ui.input_mut(|inp| inp.consume_shortcut(&s));
+    let to = if pressed(ui, shortcuts::MOVE_ROW_UP) {
+        i.checked_sub(1)
+    } else if pressed(ui, shortcuts::MOVE_ROW_DOWN) {
+        Some(i + 1).filter(|t| *t < sheet.len())
+    } else {
+        None
+    };
+    if let Some(to) = to {
+        move_row(sheet, i, to);
+        // The label fields' undo histories belong to the rows that left.
+        for index in [i, to] {
+            ui.data_mut(|d| d.remove::<egui::text_edit::TextEditState>(label_id(index)));
         }
-    });
-    nav
+        let id = label_id(to);
+        ui.memory_mut(|m| m.request_focus(id));
+    }
+}
+
+/// Tooltip of the drag handle: the ways to rearrange and open a row.
+fn handle_tip(ctx: &egui::Context) -> String {
+    let (up, down) = (
+        ctx.format_shortcut(&shortcuts::MOVE_ROW_UP),
+        ctx.format_shortcut(&shortcuts::MOVE_ROW_DOWN),
+    );
+    format!(
+        "Drag to reorder (or {up} / {down} while editing the row); double-click a row to edit it"
+    )
+}
+
+/// What to do on an empty sheet, with the two ways to start.
+fn empty_sheet(ui: &mut egui::Ui, project: &mut Project) -> Option<Nav> {
+    if project.segments.is_empty() {
+        let hint = "A section is one part of the song: intro, verse, chorus…";
+        return empty_state(ui, "The sheet is empty.", Some(hint), |ui| {
+            if icon_button(ui, Icon::Add, "New section").clicked() {
+                Some(Nav::Edit(new_section(project)))
+            } else if icon_button(ui, Icon::Import, "Import score").clicked() {
+                Some(Nav::Import)
+            } else {
+                None
+            }
+        });
+    }
+    let hint = "Use the add-to-sheet button of a section in the Sections list.";
+    empty_state(ui, "The sheet is empty.", Some(hint), |_| None)
 }
 
 /// Moves item `from` so that it ends up at index `to`.
@@ -116,11 +171,13 @@ fn row(
     ui.horizontal(|ui| {
         let weak = theme::palette(ui.ctx()).weak_text;
         let handle = match icons::image(ui.ctx(), Icon::Drag, weak) {
-            Some(img) => ui.add(img.sense(egui::Sense::drag())),
-            None => ui.add(
-                egui::Label::new(egui::RichText::new(Icon::Drag.glyph()).color(weak))
-                    .sense(egui::Sense::drag()),
-            ),
+            Some(img) => ui.add(img.sense(egui::Sense::drag())).on_hover_text(handle_tip(ui.ctx())),
+            None => ui
+                .add(
+                    egui::Label::new(egui::RichText::new(Icon::Drag.glyph()).color(weak))
+                        .sense(egui::Sense::drag()),
+                )
+                .on_hover_text(handle_tip(ui.ctx())),
         };
         handle.dnd_set_drag_payload(index);
         if handle.hovered() {
@@ -133,6 +190,7 @@ fn row(
             .on_hover_text("Which section this row shows");
         ui.add(
             egui::TextEdit::singleline(&mut entry.label)
+                .id(label_id(index))
                 .hint_text(format!("Label: {section_name}"))
                 .desired_width(NAME_FIELD_W),
         )
@@ -185,7 +243,7 @@ fn part_comments(ui: &mut egui::Ui, index: usize, comments: &mut Vec<PartComment
     if let Some(ci) = remove {
         comments.remove(ci);
     }
-    if icon_button(ui, Icon::Add, "Part comment")
+    if icon_button(ui, Icon::Add, "Add part comment")
         .on_hover_text("Comment shown only on one part's sheet")
         .clicked()
     {

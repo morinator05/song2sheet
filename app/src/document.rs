@@ -71,6 +71,11 @@ impl Document {
         title.chars().map(|c| if INVALID_FILE_CHARS.contains(c) { '-' } else { c }).collect()
     }
 
+    /// The folder of the song file, where dialogs start.
+    pub fn folder(&self) -> Option<&Path> {
+        self.path.as_deref().and_then(Path::parent)
+    }
+
     pub fn export_pdf(&self, path: &Path, filter: PartFilter) -> Result<(), String> {
         let list = engrave::layout_sheet(&self.project, filter);
         let bytes = pdf::export(&list, &self.file_stem(), APP_NAME).map_err(|e| e.to_string())?;
@@ -114,9 +119,18 @@ pub mod dialogs {
         song_filter(rfd::FileDialog::new()).pick_file()
     }
 
-    pub fn save(stem: &str) -> Option<PathBuf> {
+    /// A dialog starting in `folder` when known.
+    fn in_folder(folder: Option<&Path>) -> rfd::FileDialog {
+        let dialog = rfd::FileDialog::new();
+        match folder {
+            Some(f) => dialog.set_directory(f),
+            None => dialog,
+        }
+    }
+
+    pub fn save(stem: &str, folder: Option<&Path>) -> Option<PathBuf> {
         let dialog =
-            song_filter(rfd::FileDialog::new()).set_file_name(format!("{stem}.{FILE_EXTENSION}"));
+            song_filter(in_folder(folder)).set_file_name(format!("{stem}.{FILE_EXTENSION}"));
         dialog.save_file().map(with_song_extension)
     }
 
@@ -125,8 +139,8 @@ pub mod dialogs {
         rfd::FileDialog::new().add_filter("MusicXML score", &import::EXTENSIONS).pick_file()
     }
 
-    pub fn export_pdf(stem: &str) -> Option<PathBuf> {
-        rfd::FileDialog::new()
+    pub fn export_pdf(stem: &str, folder: Option<&Path>) -> Option<PathBuf> {
+        in_folder(folder)
             .add_filter("PDF", &["pdf"])
             .set_file_name(format!("{stem}.pdf"))
             .save_file()

@@ -7,9 +7,11 @@ use model::{Segment, StaffKind, TimeSig};
 use super::commands;
 use super::cursor::Cursor;
 use crate::screens::widgets::{
-    Icon, NAME_FIELD_W, SECTION_NAME_HINT, SHORT_FIELD_W, TEMPO_LABEL, combo, danger, ghost, menu,
-    optional_bpm, toggle,
+    Icon, NAME_FIELD_W, SECTION_NAME_HINT, SHORT_FIELD_W, TEMPO_LABEL, combo, danger, icon_button,
+    menu, optional_bpm, toggle,
 };
+use crate::shortcuts;
+use crate::status::{self, Kind};
 
 pub fn section_settings(ui: &mut egui::Ui, seg: &mut Segment) {
     ui.horizontal_wrapped(|ui| {
@@ -17,8 +19,7 @@ pub fn section_settings(ui: &mut egui::Ui, seg: &mut Segment) {
         let name = egui::TextEdit::singleline(&mut seg.name).hint_text(SECTION_NAME_HINT);
         ui.add(name.desired_width(NAME_FIELD_W));
         ui.separator();
-        ui.label(TEMPO_LABEL);
-        optional_bpm(ui, &mut seg.tempo);
+        optional_bpm(ui, TEMPO_LABEL, &mut seg.tempo);
         ui.separator();
         // Combo boxes, not drag values: every change is applied at once and
         // cuts bars, so intermediate values while dragging would lose notes.
@@ -33,14 +34,26 @@ pub fn section_settings(ui: &mut egui::Ui, seg: &mut Segment) {
         ui.label("/");
         combo(ui, "time_den", &mut ts.den, &denominators);
         if ts != seg.time_sig {
+            let shorter = ts.bar_ticks() < seg.time_sig.bar_ticks();
             commands::set_time_sig(seg, ts);
+            if shorter {
+                let undo = ui.ctx().format_shortcut(&shortcuts::UNDO);
+                status::post(
+                    ui.ctx(),
+                    Kind::Warning,
+                    format!("Bars were cut to fit; {undo} undoes this"),
+                );
+            }
         }
         ui.separator();
-        ui.label(format!("Bars: {}", seg.bar_count()));
-        if ghost(ui, Icon::Remove, "Remove the last bar").clicked() {
+        ui.label(format!("Bars {}", seg.bar_count()));
+        if icon_button(ui, Icon::Remove, "Remove bar")
+            .on_hover_text("Remove the last bar")
+            .clicked()
+        {
             commands::remove_last_bar(seg);
         }
-        if ghost(ui, Icon::Add, "Add a bar").clicked() {
+        if icon_button(ui, Icon::Add, "Add bar").on_hover_text("Add a bar at the end").clicked() {
             commands::add_bar(seg);
         }
     });

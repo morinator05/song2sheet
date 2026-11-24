@@ -51,6 +51,21 @@ impl Selection {
         self.bars = self.anchor.min(bar)..self.anchor.max(bar) + 1;
     }
 
+    /// The end that moves when extending (the one away from the anchor).
+    pub fn head(&self) -> usize {
+        if self.bars.start == self.anchor { self.bars.end - 1 } else { self.bars.start }
+    }
+
+    /// Moves the head `by` bars (within `count` bars), keeping the anchor.
+    pub fn extend_by(&mut self, by: isize, count: usize) {
+        self.extend_to(step(self.head(), by, count));
+    }
+
+    /// A one-bar selection `by` bars from the head (within `count` bars).
+    pub fn moved_by(&self, by: isize, count: usize) -> Self {
+        Self::new(step(self.head(), by, count))
+    }
+
     /// The selected bars inside `chunk`, relative to its start.
     pub fn within(&self, chunk: &Range<usize>) -> Range<usize> {
         let start = self.bars.start.clamp(chunk.start, chunk.end);
@@ -63,6 +78,11 @@ impl Selection {
         let sigs = bars.get(self.bars.clone()).unwrap_or_default();
         sigs.windows(2).any(|w| w[0].time_sig != w[1].time_sig)
     }
+}
+
+/// `bar` moved `by` bars, kept within `0..count`.
+fn step(bar: usize, by: isize, count: usize) -> usize {
+    bar.saturating_add_signed(by).min(count.saturating_sub(1))
 }
 
 #[cfg(test)]
@@ -100,6 +120,17 @@ mod tests {
         assert_eq!(s.bars, 2..6);
         s.extend_to(7);
         assert_eq!(s.bars, 5..8);
+    }
+
+    #[test]
+    fn keyboard_moves_and_extends_within_the_score() {
+        let mut s = Selection::new(2);
+        s.extend_by(2, 10);
+        assert_eq!(s.bars, 2..5);
+        s.extend_by(-4, 10);
+        assert_eq!(s.bars, 0..3, "stops at the first bar, anchor kept");
+        assert_eq!(s.moved_by(1, 10).bars, 1..2, "moves from the head");
+        assert_eq!(Selection::new(9).moved_by(1, 10).bars, 9..10, "stops at the last bar");
     }
 
     #[test]

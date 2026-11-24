@@ -18,12 +18,6 @@ use crate::shortcuts as keys;
 use crate::status::Status;
 use crate::theme::{ThemeWatcher, metrics};
 
-/// Side panel widths (points): default and smallest.
-const SONG_PANEL_W: f32 = 360.0;
-const SONG_PANEL_MIN_W: f32 = 290.0;
-const PREVIEW_PANEL_W: f32 = 540.0;
-const PREVIEW_PANEL_MIN_W: f32 = 340.0;
-
 /// What the central area shows.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Screen {
@@ -94,9 +88,17 @@ impl App {
         self.editor = Default::default();
         self.picker = Default::default();
         self.screen = Screen::Sheet;
+        self.filter = PartFilter::All;
+    }
+
+    /// Shows `screen`, first keeping a chord symbol still being typed.
+    fn set_screen(&mut self, screen: Screen) {
+        self.editor.commit_chord(&mut self.doc.project);
+        self.screen = screen;
     }
 
     fn navigate(&mut self, nav: Nav) {
+        self.editor.commit_chord(&mut self.doc.project);
         match nav {
             Nav::Edit(id) => {
                 self.editor.open(&mut self.doc.project, id);
@@ -107,13 +109,19 @@ impl App {
         }
     }
 
-    fn undo(&mut self, redo: bool) {
+    fn undo(&mut self, ctx: &egui::Context, redo: bool) {
         let project = &mut self.doc.project;
         let done = if redo { self.history.redo(project) } else { self.history.undo(project) };
         if done {
             // The editor needs its section normalized again; that is not a step.
             self.editor.refresh(project);
             self.history.sync(project);
+        }
+        match (redo, done) {
+            (false, true) => self.status.success(ctx, "Undid the last change"),
+            (true, true) => self.status.success(ctx, "Redid the change"),
+            (false, false) => self.status.warn(ctx, "Nothing to undo"),
+            (true, false) => self.status.warn(ctx, "Nothing to redo"),
         }
     }
 
@@ -135,8 +143,7 @@ impl eframe::App for App {
         // still owns that key press.
         let typing = ctx.text_edit_focused();
         // Keys belong to an open dialog or menu, not to the app behind it.
-        let blocked =
-            ctx.memory(|m| m.top_modal_layer().is_some()) || egui::Popup::is_any_open(&ctx);
+        let blocked = screens::widgets::dialog_or_menu_open(&ctx);
         if !blocked {
             self.handle_shortcuts(&ctx, typing);
         }
@@ -153,14 +160,14 @@ impl eframe::App for App {
         let open = self.open_section();
         let mut nav = egui::Panel::left("song")
             .frame(side)
-            .default_size(SONG_PANEL_W)
-            .min_size(SONG_PANEL_MIN_W)
+            .default_size(metrics::SONG_PANEL_W)
+            .min_size(metrics::SONG_PANEL_MIN_W)
             .show(ui, |ui| screens::song_panel::show(ui, &mut self.doc.project, open))
             .inner;
         egui::Panel::right("preview")
             .frame(side)
-            .default_size(PREVIEW_PANEL_W)
-            .min_size(PREVIEW_PANEL_MIN_W)
+            .default_size(metrics::PREVIEW_PANEL_W)
+            .min_size(metrics::PREVIEW_PANEL_MIN_W)
             .show(ui, |ui| self.preview_panel(ui));
         let centre = egui::Frame::central_panel(&style).inner_margin(metrics::PANEL_MARGIN);
         let centre_nav = egui::CentralPanel::default()
@@ -185,12 +192,16 @@ impl eframe::App for App {
         }
         // Record edits first: opening a section normalizes it, which is
         // not a step of its own.
-        self.history.record(&self.doc.project, ctx.input(|i| i.time));
+        // Only a frame typed in from start to end counts as typing, so a
+        // click that ends the typing is a step of its own.
+        let typed = typing && ctx.text_edit_focused();
+        self.history.record(&self.doc.project, ctx.input(|i| i.time), typed);
         if let Some(nav) = nav {
             self.navigate(nav);
             self.history.sync(&self.doc.project);
         }
         self.confirm_dialog(&ctx);
+        self.status.collect(&ctx);
     }
 }
 
@@ -201,7 +212,12 @@ impl App {
             self.request(ctx, Discarding::New);
         }
         if pressed(keys::OPEN) {
-            self.request(ctx, Discarding::Open);
+            // On the Import screen, "open" means a score to import from.
+            if self.screen == Screen::Picker {
+                self.picker.open(ctx, &mut self.doc.project);
+            } else {
+                self.request(ctx, Discarding::Open);
+            }
         }
         if pressed(keys::SAVE_AS) {
             self.save_file(ctx, true);
@@ -220,15 +236,15 @@ impl App {
             (keys::SHOW_PICKER, Screen::Picker),
         ] {
             if pressed(shortcut) {
-                self.screen = screen;
+                self.set_screen(screen);
             }
         }
         // While typing, text fields undo their own edits.
         if !typing {
             if pressed(keys::REDO) || pressed(keys::REDO_ALT) {
-                self.undo(true);
+                self.undo(ctx, true);
             } else if pressed(keys::UNDO) {
-                self.undo(false);
+                self.undo(ctx, false);
             }
         }
     }

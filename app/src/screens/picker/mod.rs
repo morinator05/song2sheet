@@ -11,11 +11,13 @@ use model::{Project, Segment, SheetEntry, StaffKind};
 
 use super::notation_view::{Highlight, NotationView};
 use super::widgets::{
-    Icon, NAME_FIELD_W, PICKER_TITLE, SECTION_NAME_HINT, caption, card, combo, header, icon_button,
-    icons, primary_enabled, staff_kind_options,
+    Icon, NAME_FIELD_W, PICKER_TITLE, SECTION_NAME_HINT, caption, card, combo, empty_state,
+    group_label, header, hint, icon_button, keys_free, primary_enabled, staff_kind_options,
 };
 use crate::document::dialogs;
-use crate::theme::{self, metrics};
+use crate::shortcuts;
+use crate::status::{self, Kind};
+use crate::theme::metrics;
 use selection::{Selection, bar_range_label, chunks};
 
 #[derive(Default)]
@@ -29,9 +31,10 @@ pub struct PickerState {
     /// Also append the new section to the sheet.
     add_to_sheet: bool,
     overview: Overview,
-    message: String,
-    /// `message` is an error.
-    failed: bool,
+    /// The focus-name shortcut was pressed: focus the field next frame.
+    focus_name: bool,
+    /// A bar the keyboard just selected, to scroll into view.
+    reveal: Option<usize>,
 }
 
 /// The score cut into chunks for display, cached until the chosen parts or
@@ -62,19 +65,19 @@ impl Overview {
 }
 
 impl PickerState {
-    fn open(&mut self, project: &mut Project) {
+    /// Asks for a score file and loads it.
+    pub fn open(&mut self, ctx: &egui::Context, project: &mut Project) {
         if let Some(path) = dialogs::open_score() {
-            self.load(project, &path);
+            self.load(ctx, project, &path);
         }
     }
 
     /// Loads the score at `path`, filling empty song details from it.
-    fn load(&mut self, project: &mut Project, path: &std::path::Path) {
+    fn load(&mut self, ctx: &egui::Context, project: &mut Project, path: &std::path::Path) {
         let score = match import::load(path) {
             Ok(score) => score,
             Err(e) => {
-                self.message = e.to_string();
-                self.failed = true;
+                status::post(ctx, Kind::Error, e.to_string());
                 return;
             }
         };
@@ -88,18 +91,17 @@ impl PickerState {
             meta.artist = score.composer.clone();
             filled.push("artist");
         }
+        let file_name = status::file_name(path);
+        let message = if filled.is_empty() {
+            format!("Opened {file_name}")
+        } else {
+            format!("Opened {file_name} and took the song's {} from it", filled.join(" and "))
+        };
+        status::post(ctx, Kind::Success, message);
         *self = PickerState {
             use_part: vec![true; score.parts.len()],
-            file_name: path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default(),
+            file_name,
             add_to_sheet: true,
-            message: if filled.is_empty() {
-                String::new()
-            } else {
-                format!("Took the song's {} from the score.", filled.join(" and "))
-            },
             score: Some(score),
             ..Default::default()
         };
@@ -109,7 +111,8 @@ impl PickerState {
         self.use_part.iter().enumerate().filter(|(_, on)| **on).map(|(i, _)| i).collect()
     }
 
-    /// Adds the selected bars as a section. Returns a confirmation.
+    /// Adds the selected bars as a section, then selects the bar after
+    /// them for the next one. Returns a confirmation.
     fn create(&mut self, project: &mut Project) -> Option<String> {
         let score = self.score.as_ref()?;
         let bars = self.selection.as_ref()?.bars.clone();
@@ -120,10 +123,16 @@ impl PickerState {
             project.sheet.push(SheetEntry::new(id));
         }
         let confirmation = format!("Added \"{name}\" ({}).", bar_range_label(&score.bars, &bars));
-        self.selection = None;
+        self.selection = next_start(bars.end, score.bars.len()).map(Selection::new);
+        self.reveal = self.selection.as_ref().map(Selection::head);
         self.name.clear();
         Some(confirmation)
     }
+}
+
+/// Where the next section starts: the bar after `end`, if there is one.
+fn next_start(end: usize, count: usize) -> Option<usize> {
+    (end < count).then_some(end)
 }
 
 pub fn show(
@@ -131,42 +140,32 @@ pub fn show(
     project: &mut Project,
     state: &mut PickerState,
 ) -> Option<super::Nav> {
+    let loaded = state.score.is_some();
     header(ui, PICKER_TITLE, |ui| {
-        if icon_button(ui, Icon::Open, "Open score")
-            .on_hover_text("A MusicXML file (.musicxml, .xml, .mxl)")
-            .clicked()
-        {
-            state.open(project);
-        }
-        if !state.file_name.is_empty() {
-            caption(ui, &state.file_name);
+        // Without a score the empty state offers the button.
+        let tip = hint("Open another MusicXML score", ui.ctx().format_shortcut(&shortcuts::OPEN));
+        if loaded && icon_button(ui, Icon::Open, "Open score").on_hover_text(tip).clicked() {
+            state.open(ui.ctx(), project);
         }
     });
-    if !state.message.is_empty() {
-        let p = theme::palette(ui.ctx());
-        let (color, icon) =
-            if state.failed { (p.error, Icon::Error) } else { (p.success, Icon::Success) };
-        icons::label(ui, icon, &state.message, color);
+    if loaded {
+        caption(ui, &state.file_name);
     }
     if state.score.is_none() {
-        card(ui, |ui| {
-            ui.label(
-                "Export your song as MusicXML, open it here and pick the bars of each section.",
-            );
-            caption(ui, "MuseScore: File → Export. Guitar Pro: File → Export → MusicXML.");
+        let text = "Open a MusicXML score and pick the bars of each section.";
+        let hint = "MuseScore: File → Export. Guitar Pro: File → Export → MusicXML.";
+        empty_state(ui, text, Some(hint), |ui| {
+            if icon_button(ui, Icon::Open, "Open score").clicked() {
+                state.open(ui.ctx(), project);
+            }
         });
         return None;
     }
-    let dialog_open = ui.ctx().memory(|m| m.top_modal_layer().is_some());
-    if state.selection.is_some()
-        && !dialog_open
-        && !ui.ctx().text_edit_focused()
-        && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
-    {
-        state.selection = None; // Esc clears the selection before leaving the screen
+    if keys_free(ui.ctx()) {
+        selection_keys(ui, state);
     }
     card(ui, |ui| parts(ui, state));
-    ui.add_space(metrics::SPACE_S);
+    ui.add_space(metrics::BLOCK_GAP);
     egui::Panel::bottom("picker_create")
         .frame(
             egui::Frame::new()
@@ -174,16 +173,48 @@ pub fn show(
         )
         .show_separator_line(false)
         .show(ui, |ui| card(ui, |ui| selection_row(ui, project, state)));
-    overview(ui, state);
+    card(ui, |ui| overview(ui, state));
     None
+}
+
+/// Left/Right move the selection by a bar, with Shift they extend it, and
+/// Esc clears it (before Esc leaves the screen).
+fn selection_keys(ui: &mut egui::Ui, state: &mut PickerState) {
+    let count = state.score.as_ref().map_or(0, |s| s.bars.len());
+    if count == 0 {
+        return;
+    }
+    let before = state.selection.clone();
+    let pressed = |ui: &mut egui::Ui, mods, key| ui.input_mut(|i| i.consume_key(mods, key));
+    for (key, by) in [(egui::Key::ArrowLeft, -1), (egui::Key::ArrowRight, 1)] {
+        if pressed(ui, egui::Modifiers::SHIFT, key) {
+            match &mut state.selection {
+                Some(s) => s.extend_by(by, count),
+                None => state.selection = Some(Selection::new(0)),
+            }
+        } else if pressed(ui, egui::Modifiers::NONE, key) {
+            state.selection =
+                Some(state.selection.as_ref().map_or(Selection::new(0), |s| s.moved_by(by, count)));
+        }
+    }
+    if state.selection != before {
+        state.reveal = state.selection.as_ref().map(|s| s.head());
+    }
+    // The name field only exists while bars are selected.
+    if state.selection.is_some() && ui.input_mut(|i| i.consume_shortcut(&shortcuts::FOCUS_NAME)) {
+        state.focus_name = true;
+    }
+    if state.selection.is_some() && pressed(ui, egui::Modifiers::NONE, egui::Key::Escape) {
+        state.selection = None;
+    }
 }
 
 fn parts(ui: &mut egui::Ui, state: &mut PickerState) {
     let Some(score) = state.score.as_mut() else { return };
     let kinds = staff_kind_options();
     egui::Grid::new("picker_parts").num_columns(2).show(ui, |ui| {
-        ui.strong("Part");
-        ui.strong("Instrument");
+        group_label(ui, "Score part");
+        group_label(ui, "Instrument");
         ui.end_row();
         for (i, part) in score.parts.iter_mut().enumerate() {
             ui.checkbox(&mut state.use_part[i], &part.name);
@@ -196,7 +227,7 @@ fn parts(ui: &mut egui::Ui, state: &mut PickerState) {
 
 fn selection_row(ui: &mut egui::Ui, project: &mut Project, state: &mut PickerState) {
     let (Some(score), Some(selection)) = (&state.score, &state.selection) else {
-        ui.label("Click a bar to start a section, Shift+click to extend it.");
+        ui.label("Click a bar to start a section, Shift+click to extend it (or use the arrow keys, with Shift to extend).");
         return;
     };
     let mut text = format!("{} selected.", bar_range_label(&score.bars, &selection.bars));
@@ -206,11 +237,15 @@ fn selection_row(ui: &mut egui::Ui, project: &mut Project, state: &mut PickerSta
     ui.label(text);
     ui.horizontal(|ui| {
         ui.label("Name");
+        let shortcut = ui.ctx().format_shortcut(&shortcuts::FOCUS_NAME);
         let field = ui.add(
             egui::TextEdit::singleline(&mut state.name)
-                .hint_text(SECTION_NAME_HINT)
+                .hint_text(format!("{SECTION_NAME_HINT} ({shortcut})"))
                 .desired_width(NAME_FIELD_W),
         );
+        if std::mem::take(&mut state.focus_name) {
+            field.request_focus();
+        }
         ui.checkbox(&mut state.add_to_sheet, "Add to sheet");
         let why = if state.chosen_parts().is_empty() {
             Some("Choose at least one part")
@@ -234,7 +269,7 @@ fn selection_row(ui: &mut egui::Ui, project: &mut Project, state: &mut PickerSta
             && (create.clicked() || entered)
             && let Some(done) = state.create(project)
         {
-            state.message = done;
+            status::post(ui.ctx(), Kind::Success, done);
         }
     });
 }
@@ -245,12 +280,22 @@ fn overview(ui: &mut egui::Ui, state: &mut PickerState) {
     let parts = state.chosen_parts();
     state.overview.refresh(score, parts);
     let mut clicked = None;
+    let reveal = std::mem::take(&mut state.reveal).and_then(|bar| {
+        state.overview.chunks.iter().find(|(c, _, _)| c.contains(&bar)).map(|(c, _, _)| c.start)
+    });
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
         for (chunk, seg, view) in &mut state.overview.chunks {
             caption(ui, bar_range_label(&score.bars, chunk));
             let selected = state.selection.as_ref().map(|s| s.within(chunk)).unwrap_or_default();
+            let top = ui.cursor().top();
             if let Some(b) = view.show(ui, seg, Highlight::Bars(&selected)) {
                 clicked = Some(chunk.start + b.bar);
+            }
+            // After a keyboard move, scroll to the chunk with the moved end.
+            if reveal == Some(chunk.start) {
+                let rect =
+                    egui::Rect::from_x_y_ranges(ui.max_rect().x_range(), top..=ui.cursor().top());
+                ui.scroll_to_rect(rect, None);
             }
         }
     });
@@ -260,5 +305,16 @@ fn overview(ui: &mut egui::Ui, state: &mut PickerState) {
             Some(s) if extend => s.extend_to(bar),
             _ => state.selection = Some(Selection::new(bar)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::next_start;
+
+    #[test]
+    fn next_section_starts_after_the_last_one() {
+        assert_eq!(next_start(8, 32), Some(8));
+        assert_eq!(next_start(32, 32), None, "no bar after the end");
     }
 }
