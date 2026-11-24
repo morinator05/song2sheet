@@ -12,7 +12,7 @@ use model::{Project, Segment, SheetEntry, StaffKind};
 use super::notation_view::{Highlight, NotationView};
 use super::widgets::{
     Icon, NAME_FIELD_W, PICKER_TITLE, SECTION_NAME_HINT, caption, card, combo, header, icon_button,
-    icons, primary_enabled, staff_kind_options,
+    icons, keys_free, primary_enabled, staff_kind_options,
 };
 use crate::document::dialogs;
 use crate::theme::{self, metrics};
@@ -159,8 +159,7 @@ pub fn show(
         });
         return None;
     }
-    let dialog_open = ui.ctx().memory(|m| m.top_modal_layer().is_some());
-    if !dialog_open && !ui.ctx().text_edit_focused() {
+    if keys_free(ui.ctx()) {
         selection_keys(ui, state);
     }
     card(ui, |ui| parts(ui, state));

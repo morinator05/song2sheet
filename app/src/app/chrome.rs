@@ -115,10 +115,12 @@ impl App {
     }
 }
 
-/// "All parts" and every instrument the song uses (plus the chosen one).
+/// "All parts" and every instrument the song has a staff or a part
+/// comment for (plus the chosen one).
 fn part_options(project: &Project, chosen: PartFilter) -> Vec<(PartFilter, String)> {
     let used = |k: StaffKind| {
         project.segments.iter().any(|s| s.staves.iter().any(|st| st.kind == k))
+            || project.sheet.iter().any(|e| e.part_comments.iter().any(|c| c.kind == k))
             || chosen == PartFilter::Only(k)
     };
     let mut options = vec![(PartFilter::All, "All parts".to_string())];
@@ -144,4 +146,31 @@ fn shortcut_list(ui: &mut egui::Ui) {
         ui.end_row();
     });
     caption(ui, "The section editor lists its own keys under Shortcuts there.");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use model::{PartComment, Segment, SheetEntry, Staff};
+
+    #[test]
+    fn parts_with_only_comments_can_be_chosen() {
+        let mut p = Project::default();
+        let mut seg = Segment::default();
+        seg.staves.push(Staff::new(StaffKind::Drums));
+        let id = p.add_segment(seg);
+        let mut row = SheetEntry::new(id);
+        row.part_comments.push(PartComment { kind: StaffKind::Vocals, ..Default::default() });
+        p.sheet.push(row);
+        let kinds: Vec<PartFilter> =
+            part_options(&p, PartFilter::All).iter().map(|o| o.0).collect();
+        assert_eq!(
+            kinds,
+            [
+                PartFilter::All,
+                PartFilter::Only(StaffKind::Drums),
+                PartFilter::Only(StaffKind::Vocals)
+            ]
+        );
+    }
 }

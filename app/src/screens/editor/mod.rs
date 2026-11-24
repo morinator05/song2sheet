@@ -15,7 +15,7 @@ use super::Nav;
 use super::notation_view::{Highlight, NotationView};
 use super::widgets::{
     BLOCK_GAP, EDITOR_TITLE, Icon, SHEET_TITLE, SHORT_FIELD_W, caption, card, header, icon_button,
-    icons, menu,
+    icons, keys_free, menu,
 };
 use crate::theme;
 use commands::{Command, Input};
@@ -71,6 +71,17 @@ impl EditorState {
         edit::normalize(seg);
         self.cursor.clamp(seg);
         self.chord_was_editing = false;
+    }
+
+    /// Writes a chord symbol that is still being typed into its beat, so
+    /// saving or exporting doesn't miss it.
+    pub fn commit_chord(&mut self, project: &mut Project) {
+        if !self.chord_was_editing {
+            return;
+        }
+        if let Some(seg) = self.segment.and_then(|id| project.segment_mut(id)) {
+            write_chord(seg, &self.chord_target, &self.chord_text);
+        }
     }
 
     fn apply(&mut self, cmd: Command, seg: &mut Segment, now: f64) {
@@ -156,9 +167,7 @@ fn beat_details(ui: &mut egui::Ui, seg: &mut Segment, state: &mut EditorState) {
     // Esc leaves the field without keeping the typed text.
     let cancelled = ui.input(|i| i.key_pressed(egui::Key::Escape));
     if done && !cancelled {
-        if let Some(beat) = state.chord_target.beat_mut(seg) {
-            beat.chord = Some(state.chord_text.trim().to_string()).filter(|t| !t.is_empty());
-        }
+        write_chord(seg, &state.chord_target, &state.chord_text);
         if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
             // Back to note input on the next beat, like MuseScore.
             state.apply(Command::Right, seg, ui.input(|i| i.time));
@@ -166,10 +175,16 @@ fn beat_details(ui: &mut egui::Ui, seg: &mut Segment, state: &mut EditorState) {
     }
 }
 
+/// Sets the chord symbol of the beat at `at` (empty text removes it).
+fn write_chord(seg: &mut Segment, at: &Cursor, text: &str) {
+    if let Some(beat) = at.beat_mut(seg) {
+        beat.chord = Some(text.trim().to_string()).filter(|t| !t.is_empty());
+    }
+}
+
 fn handle_keys(ui: &egui::Ui, seg: &mut Segment, state: &mut EditorState) {
-    let dialog_open = ui.ctx().memory(|m| m.top_modal_layer().is_some());
-    if ui.ctx().text_edit_focused() || dialog_open {
-        return; // the keys belong to a text field or dialog
+    if !keys_free(ui.ctx()) {
+        return; // the keys belong to a text field, menu or dialog
     }
     let kind = seg.staves.get(state.cursor.staff).map_or(StaffKind::Drums, |s| s.kind);
     let (events, now) = ui.input(|i| (i.events.clone(), i.time));

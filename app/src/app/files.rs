@@ -66,6 +66,7 @@ impl App {
     }
 
     pub(super) fn save_file(&mut self, ctx: &egui::Context, choose_path: bool) {
+        self.editor.commit_chord(&mut self.doc.project);
         let path = match (&self.doc.path, choose_path) {
             (Some(p), false) => p.clone(),
             _ => match dialogs::save(&self.doc.file_stem()) {
@@ -81,6 +82,7 @@ impl App {
     }
 
     pub(super) fn export_pdf(&mut self, ctx: &egui::Context) {
+        self.editor.commit_chord(&mut self.doc.project);
         let stem = match self.filter {
             PartFilter::All => self.doc.file_stem(),
             PartFilter::Only(k) => format!("{} - {}", self.doc.file_stem(), k.name()),

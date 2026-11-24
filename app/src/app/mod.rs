@@ -94,6 +94,7 @@ impl App {
         self.editor = Default::default();
         self.picker = Default::default();
         self.screen = Screen::Sheet;
+        self.filter = PartFilter::All;
     }
 
     fn navigate(&mut self, nav: Nav) {
@@ -135,8 +136,7 @@ impl eframe::App for App {
         // still owns that key press.
         let typing = ctx.text_edit_focused();
         // Keys belong to an open dialog or menu, not to the app behind it.
-        let blocked =
-            ctx.memory(|m| m.top_modal_layer().is_some()) || egui::Popup::is_any_open(&ctx);
+        let blocked = screens::widgets::dialog_or_menu_open(&ctx);
         if !blocked {
             self.handle_shortcuts(&ctx, typing);
         }
@@ -185,7 +185,7 @@ impl eframe::App for App {
         }
         // Record edits first: opening a section normalizes it, which is
         // not a step of its own.
-        self.history.record(&self.doc.project, ctx.input(|i| i.time));
+        self.history.record(&self.doc.project, ctx.input(|i| i.time), typing);
         if let Some(nav) = nav {
             self.navigate(nav);
             self.history.sync(&self.doc.project);

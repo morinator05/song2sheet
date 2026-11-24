@@ -4,7 +4,7 @@ pub mod buttons;
 pub mod icons;
 pub mod layout;
 
-use eframe::egui::{self, Key};
+use eframe::egui;
 
 pub use crate::theme::metrics::BLOCK_GAP;
 pub use buttons::{
@@ -74,10 +74,22 @@ pub fn optional_bpm(ui: &mut egui::Ui, tempo: &mut Option<u32>) {
     });
 }
 
+/// Whether a dialog or a menu (popup, open combo box) is open; keys then
+/// belong to it, not to the screen behind.
+pub fn dialog_or_menu_open(ctx: &egui::Context) -> bool {
+    ctx.memory(|m| m.top_modal_layer().is_some()) || egui::Popup::is_any_open(ctx)
+}
+
+/// Whether plain keys may drive a screen: no dialog, menu or text field
+/// has them.
+pub fn keys_free(ctx: &egui::Context) -> bool {
+    !dialog_or_menu_open(ctx) && !ctx.text_edit_focused()
+}
+
 /// A modal yes/no question about discarding something; the confirm
-/// button is red. Returns `Some(true)` when confirmed (button or
-/// Enter), `Some(false)` when cancelled (button, Esc or a click outside)
-/// and `None` while still open.
+/// button is red. Returns `Some(true)` when confirmed (only by clicking it:
+/// a habitual Enter must not destroy work), `Some(false)` when cancelled
+/// (button, Esc or a click outside) and `None` while still open.
 pub fn confirm(
     ctx: &egui::Context,
     id: egui::Id,
@@ -85,11 +97,6 @@ pub fn confirm(
     confirm_label: &str,
 ) -> Option<bool> {
     let mut choice = None;
-    // Enter counts only once the dialog was already open: the key press
-    // that opened it must not also confirm it.
-    let seen = id.with("seen");
-    let was_open = ctx.data(|d| d.get_temp::<bool>(seen)).unwrap_or(false);
-    ctx.data_mut(|d| d.insert_temp(seen, true));
     let modal = egui::Modal::new(id).show(ctx, |ui| {
         ui.label(question);
         ui.add_space(BLOCK_GAP);
@@ -101,15 +108,9 @@ pub fn confirm(
                 choice = Some(false);
             }
         });
-        if was_open && ui.input(|i| i.key_pressed(Key::Enter)) {
-            choice = Some(true);
-        }
     });
     if choice.is_none() && modal.should_close() {
         choice = Some(false);
-    }
-    if choice.is_some() {
-        ctx.data_mut(|d| d.remove::<bool>(seen));
     }
     choice
 }
