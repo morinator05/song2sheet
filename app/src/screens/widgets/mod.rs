@@ -7,7 +7,10 @@ pub mod layout;
 use eframe::egui::{self, Key};
 
 pub use crate::theme::metrics::BLOCK_GAP;
-pub use buttons::{combo, danger, ghost, primary, primary_enabled, secondary, toggle};
+pub use buttons::{
+    combo, danger, ghost, icon_button, menu, primary, primary_enabled, secondary, toggle,
+};
+pub use icons::Icon;
 pub use layout::{caption, card, card_frame, group_label, header};
 
 /// Width of single-line name fields (sections, sheet row labels).

@@ -12,3 +12,4 @@ pdf.workspace = true
 raster.workspace = true
 eframe = { version = "0.37", features = ["persistence"] }
 rfd = "0.18"
+resvg = { version = "0.50", default-features = false }

@@ -13,7 +13,8 @@ use model::{Project, Segment, SegmentId, StaffKind, edit};
 use super::Nav;
 use super::notation_view::{Highlight, NotationView};
 use super::widgets::{
-    BLOCK_GAP, EDITOR_TITLE, SHEET_TITLE, SHORT_FIELD_W, caption, card, header, icons, secondary,
+    BLOCK_GAP, EDITOR_TITLE, Icon, SHEET_TITLE, SHORT_FIELD_W, caption, card, header, icon_button,
+    icons, menu,
 };
 use crate::theme;
 use commands::{Command, Input};
@@ -80,7 +81,7 @@ impl EditorState {
 pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut EditorState) -> Option<Nav> {
     let Some(seg) = state.segment.and_then(|id| project.segment_mut(id)) else {
         header(ui, EDITOR_TITLE, |_| {});
-        caption(ui, format!("Choose a section to edit with {} in the Sections list.", icons::EDIT));
+        caption(ui, "Choose a section to edit with its edit button in the Sections list.");
         return None;
     };
     state.cursor.clamp(seg);
@@ -90,14 +91,14 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut EditorState) -
         format!("{EDITOR_TITLE} · {}", seg.name.trim())
     };
     let back = header(ui, &title, |ui| {
-        ui.menu_button(icons::with(icons::KEYBOARD, "Shortcuts"), |ui| {
+        menu(ui, Icon::Keyboard, "Shortcuts", |ui| {
             ui.set_max_width(LEGEND_MAX_W);
             for line in toolbar::legend(ui.ctx()) {
                 ui.label(line);
             }
         });
         let back = format!("Back to the sheet ({})", crate::shortcuts::BACK.name());
-        secondary(ui, &icons::with(icons::BACK, SHEET_TITLE)).on_hover_text(back).clicked()
+        icon_button(ui, Icon::Back, SHEET_TITLE).on_hover_text(back).clicked()
     });
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
         card(ui, |ui| {
@@ -148,7 +149,7 @@ fn beat_details(ui: &mut egui::Ui, seg: &mut Segment, state: &mut EditorState) {
         done = state.chord_was_editing && !field.has_focus();
         state.chord_was_editing = field.has_focus();
         if let Some(message) = &state.message {
-            ui.colored_label(warn, icons::with(icons::WARNING, message));
+            icons::label(ui, Icon::Warning, message, warn);
         }
     });
     // Esc leaves the field without keeping the typed text.

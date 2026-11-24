@@ -7,8 +7,8 @@ use model::{PartComment, Project, SegmentId, SheetEntry};
 use super::Nav;
 use super::song_panel::new_section;
 use super::widgets::{
-    BLOCK_GAP, NAME_FIELD_W, SHEET_TITLE, caption, card_frame, combo, count, danger, ghost, header,
-    icons, secondary, staff_kind_options,
+    BLOCK_GAP, Icon, NAME_FIELD_W, SHEET_TITLE, caption, card_frame, combo, count, danger, ghost,
+    header, icon_button, icons, staff_kind_options,
 };
 use crate::theme::{self, metrics};
 
@@ -28,7 +28,7 @@ enum RowAction {
 pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -> Option<Nav> {
     let rows = project.sheet.len();
     header(ui, SHEET_TITLE, |ui| {
-        caption(ui, format!("{} · drag {} to reorder", count(rows, "row"), icons::DRAG));
+        caption(ui, format!("{} · drag a row by its handle to reorder", count(rows, "row")));
     });
     if project.sheet.is_empty() {
         return empty_state(ui, project);
@@ -82,18 +82,15 @@ fn empty_state(ui: &mut egui::Ui, project: &mut Project) -> Option<Nav> {
             ui.label("Start with a new section, or import sections from a score.");
             ui.add_space(metrics::SPACE_S);
             ui.horizontal(|ui| {
-                if secondary(ui, &icons::with(icons::ADD, "New section")).clicked() {
+                if icon_button(ui, Icon::Add, "New section").clicked() {
                     nav = Some(Nav::Edit(new_section(project)));
                 }
-                if secondary(ui, &icons::with(icons::SCORE, "Import a score")).clicked() {
+                if icon_button(ui, Icon::Import, "Import a score").clicked() {
                     nav = Some(Nav::Import);
                 }
             });
         } else {
-            ui.label(format!(
-                "Add sections to the sheet with {} in the Sections list.",
-                icons::ADD_TO_SHEET
-            ));
+            ui.label("Add sections to the sheet with the \"Add to the end of the sheet\" button in the Sections list.");
         }
     });
     nav
@@ -117,12 +114,14 @@ fn row(
     let section_name =
         sections.iter().find(|s| s.0 == entry.segment).map_or("?", |s| s.1.as_str()).to_string();
     ui.horizontal(|ui| {
-        let handle = ui.add(
-            egui::Label::new(
-                egui::RichText::new(icons::DRAG).color(theme::palette(ui.ctx()).weak_text),
-            )
-            .sense(egui::Sense::drag()),
-        );
+        let weak = theme::palette(ui.ctx()).weak_text;
+        let handle = match icons::image(ui.ctx(), Icon::Drag, weak) {
+            Some(img) => ui.add(img.sense(egui::Sense::drag())),
+            None => ui.add(
+                egui::Label::new(egui::RichText::new(Icon::Drag.glyph()).color(weak))
+                    .sense(egui::Sense::drag()),
+            ),
+        };
         handle.dnd_set_drag_payload(index);
         if handle.hovered() {
             ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
@@ -147,13 +146,13 @@ fn row(
         )
         .on_hover_text("How often the section is played");
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if danger(ui, icons::DELETE, "Remove row").clicked() {
+            if danger(ui, Icon::Delete, "Remove row").clicked() {
                 *action = Some(RowAction::Remove(index));
             }
-            if ghost(ui, icons::DUPLICATE, "Duplicate row").clicked() {
+            if ghost(ui, Icon::Duplicate, "Duplicate row").clicked() {
                 *action = Some(RowAction::Duplicate(index));
             }
-            if ghost(ui, icons::EDIT, "Edit this section").clicked() {
+            if ghost(ui, Icon::Edit, "Edit this section").clicked() {
                 *action = Some(RowAction::Edit(entry.segment));
             }
         });
@@ -174,7 +173,7 @@ fn part_comments(ui: &mut egui::Ui, index: usize, comments: &mut Vec<PartComment
         ui.horizontal(|ui| {
             combo(ui, ("part", index, ci), &mut pc.kind, &kinds);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if danger(ui, icons::DELETE, "Remove part comment").clicked() {
+                if danger(ui, Icon::Delete, "Remove part comment").clicked() {
                     remove = Some(ci);
                 }
                 let field = egui::TextEdit::singleline(&mut pc.text)
@@ -186,7 +185,7 @@ fn part_comments(ui: &mut egui::Ui, index: usize, comments: &mut Vec<PartComment
     if let Some(ci) = remove {
         comments.remove(ci);
     }
-    if secondary(ui, &icons::with(icons::ADD, "Part comment"))
+    if icon_button(ui, Icon::Add, "Part comment")
         .on_hover_text("Comment shown only on one part's sheet")
         .clicked()
     {

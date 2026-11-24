@@ -35,7 +35,7 @@ There are three fixed areas: **Sections** on the left, the **centre screen** in 
 - Use `combo` for combo boxes. It sizes the box to its longest option.
 - A disabled primary button says why in a caption and in its tooltip.
 - Labels are sentence case and use verbs. Don't end a label with "…".
-- Icons come from the embedded Phosphor font (`widgets/icons.rs`). Pair an icon with text, except in ghost buttons. Never use emoji.
+- Icons (`widgets/icons.rs`, the `Icon` enum) come from the system icon theme: KDE's configured theme, falling back to Breeze. They are tinted like the text next to them and centred as images. Without an icon theme, the embedded Phosphor font stands in. Pair an icon with text, except in ghost buttons. Never use emoji.
 
 ## Colour (`theme/mod.rs`)
 

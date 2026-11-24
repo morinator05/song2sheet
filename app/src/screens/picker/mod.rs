@@ -11,8 +11,8 @@ use model::{Project, Segment, SheetEntry, StaffKind};
 
 use super::notation_view::{Highlight, NotationView};
 use super::widgets::{
-    NAME_FIELD_W, PICKER_TITLE, SECTION_NAME_HINT, caption, card, combo, header, icons,
-    primary_enabled, secondary, staff_kind_options,
+    Icon, NAME_FIELD_W, PICKER_TITLE, SECTION_NAME_HINT, caption, card, combo, header, icon_button,
+    icons, primary_enabled, staff_kind_options,
 };
 use crate::document::dialogs;
 use crate::theme::{self, metrics};
@@ -132,8 +132,10 @@ pub fn show(
     state: &mut PickerState,
 ) -> Option<super::Nav> {
     header(ui, PICKER_TITLE, |ui| {
-        let open = icons::with(icons::OPEN, "Open score");
-        if secondary(ui, &open).on_hover_text("A MusicXML file (.musicxml, .xml, .mxl)").clicked() {
+        if icon_button(ui, Icon::Open, "Open score")
+            .on_hover_text("A MusicXML file (.musicxml, .xml, .mxl)")
+            .clicked()
+        {
             state.open(project);
         }
         if !state.file_name.is_empty() {
@@ -143,8 +145,8 @@ pub fn show(
     if !state.message.is_empty() {
         let p = theme::palette(ui.ctx());
         let (color, icon) =
-            if state.failed { (p.error, icons::ERROR) } else { (p.success, icons::SUCCESS) };
-        ui.colored_label(color, icons::with(icon, &state.message));
+            if state.failed { (p.error, Icon::Error) } else { (p.success, Icon::Success) };
+        icons::label(ui, icon, &state.message, color);
     }
     if state.score.is_none() {
         card(ui, |ui| {
@@ -220,7 +222,8 @@ fn selection_row(ui: &mut egui::Ui, project: &mut Project, state: &mut PickerSta
         let create = primary_enabled(
             ui,
             why.is_none(),
-            &icons::with(icons::ADD, "Create section"),
+            Icon::Add,
+            "Create section",
             why.unwrap_or_default(),
         );
         if let Some(why) = why {

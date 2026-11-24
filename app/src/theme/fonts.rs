@@ -14,8 +14,6 @@ const ICONS: &str = "phosphor";
 
 static PHOSPHOR: &[u8] = include_bytes!("../../../assets/fonts/Phosphor.ttf");
 
-/// Phosphor glyphs sit on the baseline; this centres them on the text.
-const ICON_Y_OFFSET: f32 = 0.1;
 /// Icons are drawn a bit larger than the text next to them.
 const ICON_SCALE: f32 = 1.15;
 
@@ -28,11 +26,8 @@ pub fn install(ctx: &egui::Context) {
     add(BOLD, FontData::from_static(engrave::fonts::TEXT_BOLD));
     add(
         ICONS,
-        FontData::from_static(PHOSPHOR).tweak(FontTweak {
-            scale: ICON_SCALE,
-            y_offset_factor: ICON_Y_OFFSET,
-            ..Default::default()
-        }),
+        FontData::from_static(PHOSPHOR)
+            .tweak(FontTweak { scale: ICON_SCALE, ..Default::default() }),
     );
 
     let defaults = fonts.families.get(&FontFamily::Proportional).cloned().unwrap_or_default();

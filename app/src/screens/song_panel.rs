@@ -5,8 +5,8 @@ use model::{Project, Segment, SegmentId, SheetEntry};
 
 use super::Nav;
 use super::widgets::{
-    BLOCK_GAP, TEMPO_LABEL, caption, card, card_frame, confirm, count, danger, ghost, header,
-    icons, optional_bpm, secondary,
+    BLOCK_GAP, Icon, TEMPO_LABEL, caption, card, card_frame, confirm, count, danger, ghost, header,
+    icon_button, optional_bpm,
 };
 use crate::theme;
 
@@ -22,13 +22,13 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -
             card(ui, |ui| song_details(ui, project));
             ui.add_space(BLOCK_GAP);
             let nav = header(ui, "Sections", |ui| {
-                if secondary(ui, &icons::with(icons::ADD, "New"))
+                if icon_button(ui, Icon::Add, "New")
                     .on_hover_text("New empty section, opened in the editor")
                     .clicked()
                 {
                     return Some(Nav::Edit(new_section(project)));
                 }
-                if secondary(ui, &icons::with(icons::SCORE, "Import"))
+                if icon_button(ui, Icon::Import, "Import")
                     .on_hover_text("Take sections from a MusicXML score")
                     .clicked()
                 {
@@ -94,16 +94,16 @@ fn section_pool(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId
             let size = egui::vec2(ui.available_width(), ui.spacing().interact_size.y);
             let layout = egui::Layout::right_to_left(egui::Align::Center);
             ui.allocate_ui_with_layout(size, layout, |ui| {
-                if danger(ui, icons::DELETE, "Delete section (and its sheet rows)").clicked() {
+                if danger(ui, Icon::Delete, "Delete section (and its sheet rows)").clicked() {
                     remove = Some(seg.id);
                 }
-                if ghost(ui, icons::DUPLICATE, "Duplicate as a new section").clicked() {
+                if ghost(ui, Icon::Duplicate, "Duplicate as a new section").clicked() {
                     duplicate = Some(seg.id);
                 }
-                if ghost(ui, icons::ADD_TO_SHEET, "Add to the end of the sheet").clicked() {
+                if ghost(ui, Icon::AddToSheet, "Add to the end of the sheet").clicked() {
                     add = Some(seg.id);
                 }
-                if ghost(ui, icons::EDIT, "Edit notation").clicked() {
+                if ghost(ui, Icon::Edit, "Edit notation").clicked() {
                     nav = Some(Nav::Edit(seg.id));
                 }
                 let used = match uses {
