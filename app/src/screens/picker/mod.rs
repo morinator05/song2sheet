@@ -12,10 +12,12 @@ use model::{Project, Segment, SheetEntry, StaffKind};
 use super::notation_view::{Highlight, NotationView};
 use super::widgets::{
     Icon, NAME_FIELD_W, PICKER_TITLE, SECTION_NAME_HINT, caption, card, combo, header, icon_button,
-    icons, keys_free, primary_enabled, staff_kind_options,
+    keys_free, primary_enabled, staff_kind_options,
 };
 use crate::document::dialogs;
-use crate::theme::{self, metrics};
+use crate::shortcuts;
+use crate::status::{self, Kind};
+use crate::theme::metrics;
 use selection::{Selection, bar_range_label, chunks};
 
 #[derive(Default)]
@@ -29,9 +31,8 @@ pub struct PickerState {
     /// Also append the new section to the sheet.
     add_to_sheet: bool,
     overview: Overview,
-    message: String,
-    /// `message` is an error.
-    failed: bool,
+    /// The focus-name shortcut was pressed: focus the field next frame.
+    focus_name: bool,
     /// A bar the keyboard just selected, to scroll into view.
     reveal: Option<usize>,
 }
@@ -64,19 +65,19 @@ impl Overview {
 }
 
 impl PickerState {
-    fn open(&mut self, project: &mut Project) {
+    /// Asks for a score file and loads it.
+    pub fn open(&mut self, ctx: &egui::Context, project: &mut Project) {
         if let Some(path) = dialogs::open_score() {
-            self.load(project, &path);
+            self.load(ctx, project, &path);
         }
     }
 
     /// Loads the score at `path`, filling empty song details from it.
-    fn load(&mut self, project: &mut Project, path: &std::path::Path) {
+    fn load(&mut self, ctx: &egui::Context, project: &mut Project, path: &std::path::Path) {
         let score = match import::load(path) {
             Ok(score) => score,
             Err(e) => {
-                self.message = e.to_string();
-                self.failed = true;
+                status::post(ctx, Kind::Error, e.to_string());
                 return;
             }
         };
@@ -90,18 +91,17 @@ impl PickerState {
             meta.artist = score.composer.clone();
             filled.push("artist");
         }
+        let file_name = status::file_name(path);
+        let message = if filled.is_empty() {
+            format!("Opened {file_name}")
+        } else {
+            format!("Opened {file_name} and took the song's {} from it", filled.join(" and "))
+        };
+        status::post(ctx, Kind::Success, message);
         *self = PickerState {
             use_part: vec![true; score.parts.len()],
-            file_name: path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default(),
+            file_name,
             add_to_sheet: true,
-            message: if filled.is_empty() {
-                String::new()
-            } else {
-                format!("Took the song's {} from the score.", filled.join(" and "))
-            },
             score: Some(score),
             ..Default::default()
         };
@@ -111,7 +111,8 @@ impl PickerState {
         self.use_part.iter().enumerate().filter(|(_, on)| **on).map(|(i, _)| i).collect()
     }
 
-    /// Adds the selected bars as a section. Returns a confirmation.
+    /// Adds the selected bars as a section, then selects the bar after
+    /// them for the next one. Returns a confirmation.
     fn create(&mut self, project: &mut Project) -> Option<String> {
         let score = self.score.as_ref()?;
         let bars = self.selection.as_ref()?.bars.clone();
@@ -122,10 +123,16 @@ impl PickerState {
             project.sheet.push(SheetEntry::new(id));
         }
         let confirmation = format!("Added \"{name}\" ({}).", bar_range_label(&score.bars, &bars));
-        self.selection = None;
+        self.selection = next_start(bars.end, score.bars.len()).map(Selection::new);
+        self.reveal = self.selection.as_ref().map(Selection::head);
         self.name.clear();
         Some(confirmation)
     }
+}
+
+/// Where the next section starts: the bar after `end`, if there is one.
+fn next_start(end: usize, count: usize) -> Option<usize> {
+    (end < count).then_some(end)
 }
 
 pub fn show(
@@ -138,18 +145,12 @@ pub fn show(
             .on_hover_text("A MusicXML file (.musicxml, .xml, .mxl)")
             .clicked()
         {
-            state.open(project);
+            state.open(ui.ctx(), project);
         }
         if !state.file_name.is_empty() {
             caption(ui, &state.file_name);
         }
     });
-    if !state.message.is_empty() {
-        let p = theme::palette(ui.ctx());
-        let (color, icon) =
-            if state.failed { (p.error, Icon::Error) } else { (p.success, Icon::Success) };
-        icons::label(ui, icon, &state.message, color);
-    }
     if state.score.is_none() {
         card(ui, |ui| {
             ui.label(
@@ -198,6 +199,9 @@ fn selection_keys(ui: &mut egui::Ui, state: &mut PickerState) {
     if state.selection != before {
         state.reveal = state.selection.as_ref().map(|s| s.head());
     }
+    if ui.input_mut(|i| i.consume_shortcut(&shortcuts::FOCUS_NAME)) {
+        state.focus_name = true;
+    }
     if state.selection.is_some() && pressed(ui, egui::Modifiers::NONE, egui::Key::Escape) {
         state.selection = None;
     }
@@ -231,11 +235,15 @@ fn selection_row(ui: &mut egui::Ui, project: &mut Project, state: &mut PickerSta
     ui.label(text);
     ui.horizontal(|ui| {
         ui.label("Name");
+        let shortcut = ui.ctx().format_shortcut(&shortcuts::FOCUS_NAME);
         let field = ui.add(
             egui::TextEdit::singleline(&mut state.name)
-                .hint_text(SECTION_NAME_HINT)
+                .hint_text(format!("{SECTION_NAME_HINT} ({shortcut})"))
                 .desired_width(NAME_FIELD_W),
         );
+        if std::mem::take(&mut state.focus_name) {
+            field.request_focus();
+        }
         ui.checkbox(&mut state.add_to_sheet, "Add to sheet");
         let why = if state.chosen_parts().is_empty() {
             Some("Choose at least one part")
@@ -259,7 +267,7 @@ fn selection_row(ui: &mut egui::Ui, project: &mut Project, state: &mut PickerSta
             && (create.clicked() || entered)
             && let Some(done) = state.create(project)
         {
-            state.message = done;
+            status::post(ui.ctx(), Kind::Success, done);
         }
     });
 }
@@ -295,5 +303,16 @@ fn overview(ui: &mut egui::Ui, state: &mut PickerState) {
             Some(s) if extend => s.extend_to(bar),
             _ => state.selection = Some(Selection::new(bar)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::next_start;
+
+    #[test]
+    fn next_section_starts_after_the_last_one() {
+        assert_eq!(next_start(8, 32), Some(8));
+        assert_eq!(next_start(32, 32), None, "no bar after the end");
     }
 }

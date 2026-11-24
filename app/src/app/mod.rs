@@ -108,7 +108,7 @@ impl App {
         }
     }
 
-    fn undo(&mut self, redo: bool) {
+    fn undo(&mut self, ctx: &egui::Context, redo: bool) {
         let project = &mut self.doc.project;
         let done = if redo { self.history.redo(project) } else { self.history.undo(project) };
         if done {
@@ -116,6 +116,13 @@ impl App {
             self.editor.refresh(project);
             self.history.sync(project);
         }
+        let text = match (redo, done) {
+            (false, true) => "Undid the last change",
+            (true, true) => "Redid the change",
+            (false, false) => "Nothing to undo",
+            (true, false) => "Nothing to redo",
+        };
+        self.status.success(ctx, text);
     }
 
     /// The section open in the editor, while the editor is shown.
@@ -191,6 +198,7 @@ impl eframe::App for App {
             self.history.sync(&self.doc.project);
         }
         self.confirm_dialog(&ctx);
+        self.status.collect(&ctx);
     }
 }
 
@@ -201,7 +209,12 @@ impl App {
             self.request(ctx, Discarding::New);
         }
         if pressed(keys::OPEN) {
-            self.request(ctx, Discarding::Open);
+            // On the Import screen, "open" means a score to import from.
+            if self.screen == Screen::Picker {
+                self.picker.open(ctx, &mut self.doc.project);
+            } else {
+                self.request(ctx, Discarding::Open);
+            }
         }
         if pressed(keys::SAVE_AS) {
             self.save_file(ctx, true);
@@ -226,9 +239,9 @@ impl App {
         // While typing, text fields undo their own edits.
         if !typing {
             if pressed(keys::REDO) || pressed(keys::REDO_ALT) {
-                self.undo(true);
+                self.undo(ctx, true);
             } else if pressed(keys::UNDO) {
-                self.undo(false);
+                self.undo(ctx, false);
             }
         }
     }

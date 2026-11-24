@@ -6,12 +6,15 @@ use model::{PartFilter, Project, StaffKind};
 
 use super::{App, Discarding, Screen};
 use crate::screens::widgets::{
-    EDITOR_TITLE, Icon, PICKER_TITLE, SHEET_TITLE, caption, combo, ghost, header, icon_button,
-    menu, primary, secondary, toggle,
+    EDITOR_TITLE, Icon, PICKER_TITLE, SHEET_TITLE, caption, combo, count, ghost, header,
+    icon_button, menu, primary_enabled, secondary, toggle,
 };
 use crate::shortcuts as keys;
 use crate::theme::{self, metrics};
 
+/// A song sheet should fit on this many pages; more is flagged.
+const MAX_PAGES: usize = 2;
+const TOO_LONG: &str = "Longer than 2 pages: shorten comments or use fewer rows";
 /// Hover text of the part chooser.
 const PART_HINT: &str = "Which part the preview and the exported PDF show";
 
@@ -40,7 +43,7 @@ impl App {
                 .inner
                 .clicked()
             {
-                self.undo(false);
+                self.undo(ui.ctx(), false);
             }
             let redo = format!("Redo ({})", tip(keys::REDO));
             if ui
@@ -48,7 +51,7 @@ impl App {
                 .inner
                 .clicked()
             {
-                self.undo(true);
+                self.undo(ui.ctx(), true);
             }
             ui.separator();
             for (screen, title, shortcut) in [
@@ -85,11 +88,24 @@ impl App {
             combo(ui, "part_filter", &mut self.filter, &options).on_hover_text(PART_HINT);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let hint = ui.ctx().format_shortcut(&keys::EXPORT);
-                if primary(ui, Icon::Export, "Export PDF").on_hover_text(hint).clicked() {
+                let empty = self.doc.project.sheet.is_empty();
+                let why = "The sheet has no rows yet";
+                let export = primary_enabled(ui, !empty, Icon::Export, "Export PDF", why);
+                if export.on_hover_text(hint).clicked() {
                     self.export_pdf(ui.ctx());
                 }
             });
         });
+        let pages = self.preview.page_count();
+        if pages > 0 {
+            let text = count(pages, "page");
+            if pages > MAX_PAGES {
+                let warn = theme::palette(ui.ctx()).warn;
+                ui.label(RichText::new(text).small().color(warn)).on_hover_text(TOO_LONG);
+            } else {
+                caption(ui, text);
+            }
+        }
         ui.add_space(metrics::SPACE_S);
         self.preview.show(ui, &self.doc.project, self.filter);
     }

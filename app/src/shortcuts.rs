@@ -27,13 +27,18 @@ pub const UNDO: KeyboardShortcut = cmd(Key::Z);
 pub const SHOW_SHEET: KeyboardShortcut = alt(Key::Num1);
 pub const SHOW_EDITOR: KeyboardShortcut = alt(Key::Num2);
 pub const SHOW_PICKER: KeyboardShortcut = alt(Key::Num3);
+/// Sheet: move the row being edited up or down.
+pub const MOVE_ROW_UP: KeyboardShortcut = alt(Key::ArrowUp);
+pub const MOVE_ROW_DOWN: KeyboardShortcut = alt(Key::ArrowDown);
+/// Import screen: focus the new section's name field.
+pub const FOCUS_NAME: KeyboardShortcut = cmd(Key::L);
 /// Back to the sheet from the editor or the import screen.
 pub const BACK: Key = Key::Escape;
 
 /// Every app-wide shortcut with what it does, for the shortcuts popup.
-pub const LEGEND: [(KeyboardShortcut, &str); 11] = [
+pub const LEGEND: [(KeyboardShortcut, &str); 14] = [
     (NEW, "New song"),
-    (OPEN, "Open"),
+    (OPEN, "Open (a score on the Import screen)"),
     (SAVE, "Save"),
     (SAVE_AS, "Save as"),
     (EXPORT, "Export PDF"),
@@ -42,5 +47,8 @@ pub const LEGEND: [(KeyboardShortcut, &str); 11] = [
     (SHOW_SHEET, "Show the sheet"),
     (SHOW_EDITOR, "Show the section editor"),
     (SHOW_PICKER, "Show the import screen"),
+    (MOVE_ROW_UP, "Sheet: move the row being edited up"),
+    (MOVE_ROW_DOWN, "Sheet: move the row being edited down"),
+    (FOCUS_NAME, "Import: go to the section name"),
     (QUIT, "Quit"),
 ];

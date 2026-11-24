@@ -7,9 +7,7 @@ pub mod layout;
 use eframe::egui;
 
 pub use crate::theme::metrics::BLOCK_GAP;
-pub use buttons::{
-    combo, danger, ghost, icon_button, menu, primary, primary_enabled, secondary, toggle,
-};
+pub use buttons::{combo, danger, ghost, icon_button, menu, primary_enabled, secondary, toggle};
 pub use icons::Icon;
 pub use layout::{caption, card, card_frame, clickable, group_label, header};
 

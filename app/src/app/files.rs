@@ -69,7 +69,7 @@ impl App {
         self.editor.commit_chord(&mut self.doc.project);
         let path = match (&self.doc.path, choose_path) {
             (Some(p), false) => p.clone(),
-            _ => match dialogs::save(&self.doc.file_stem()) {
+            _ => match dialogs::save(&self.doc.file_stem(), self.doc.folder()) {
                 Some(p) => p,
                 None => return,
             },
@@ -87,7 +87,7 @@ impl App {
             PartFilter::All => self.doc.file_stem(),
             PartFilter::Only(k) => format!("{} - {}", self.doc.file_stem(), k.name()),
         };
-        let Some(path) = dialogs::export_pdf(&stem) else { return };
+        let Some(path) = dialogs::export_pdf(&stem, self.doc.folder()) else { return };
         let result = self
             .doc
             .export_pdf(&path, self.filter)

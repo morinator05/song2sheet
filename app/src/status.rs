@@ -1,5 +1,6 @@
 //! The message line at the bottom of the window: the outcome of the last
-//! file action. Confirmations fade out; errors stay until replaced.
+//! action. Confirmations and warnings fade out; errors stay until
+//! replaced. Screens [`post`] messages; the app picks them up each frame.
 
 use eframe::egui;
 
@@ -12,7 +13,20 @@ const SHOW_SECS: f64 = 5.0;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Kind {
     Success,
+    /// Something was refused or changed more than asked; fades like a
+    /// confirmation.
+    Warning,
     Error,
+}
+
+/// Leaves a message for the status line (from any screen).
+pub fn post(ctx: &egui::Context, kind: Kind, text: impl Into<String>) {
+    let text = text.into();
+    ctx.data_mut(|d| d.insert_temp(mailbox(), Some((text, kind))));
+}
+
+fn mailbox() -> egui::Id {
+    egui::Id::unique("status_mailbox")
 }
 
 #[derive(Clone, Debug, Default)]
@@ -34,6 +48,14 @@ impl Status {
         match result {
             Ok(m) => self.success(ctx, m),
             Err(e) => self.error(ctx, e),
+        }
+    }
+
+    /// Takes over a message a screen [`post`]ed.
+    pub fn collect(&mut self, ctx: &egui::Context) {
+        let posted = ctx.data_mut(|d| d.remove_temp::<Option<(String, Kind)>>(mailbox())).flatten();
+        if let Some((text, kind)) = posted {
+            self.set(ctx, text, kind);
         }
     }
 
@@ -59,10 +81,11 @@ impl Status {
         let p = theme::palette(ui.ctx());
         let (icon, color) = match kind {
             Kind::Success => (Icon::Success, p.success),
+            Kind::Warning => (Icon::Warning, p.warn),
             Kind::Error => (Icon::Error, p.error),
         };
         icons::label(ui, icon, text, color);
-        if kind == Kind::Success {
+        if kind != Kind::Error {
             ui.ctx().request_repaint_after_secs(SHOW_SECS as f32);
         }
     }

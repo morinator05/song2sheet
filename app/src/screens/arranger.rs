@@ -10,6 +10,7 @@ use super::widgets::{
     BLOCK_GAP, Icon, NAME_FIELD_W, SHEET_TITLE, caption, card_frame, clickable, combo, count,
     danger, ghost, header, icon_button, icons, staff_kind_options,
 };
+use crate::shortcuts;
 use crate::theme::{self, metrics};
 
 /// Largest repeat count offered for a row.
@@ -41,6 +42,8 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -
     let mut action = None;
     let p = theme::palette(ui.ctx());
     let dragging = egui::DragAndDrop::payload::<usize>(ui.ctx()).map(|i| *i);
+    keyboard_move(ui, &mut project.sheet);
+    let mut focused_row = None;
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
         for (i, entry) in project.sheet.iter_mut().enumerate() {
             let mut frame = card_frame(&p);
@@ -55,6 +58,9 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -
             if response.double_clicked() {
                 action = Some(RowAction::Edit(entry.segment));
             }
+            if has_focus_inside(ui, response.rect) {
+                focused_row = Some(i);
+            }
             if let Some(from) = response.dnd_hover_payload::<usize>() {
                 // The dropped row takes this row's place: show where it lands.
                 let r = response.rect;
@@ -66,6 +72,7 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -
             }
         }
     });
+    ui.data_mut(|d| d.insert_temp(focused_row_id(ui), focused_row));
     match action {
         Some(RowAction::Move { from, to }) => move_row(&mut project.sheet, from, to),
         Some(RowAction::Duplicate(i)) => {
@@ -79,6 +86,43 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -
         None => {}
     }
     None
+}
+
+fn focused_row_id(ui: &egui::Ui) -> egui::Id {
+    ui.scope_id().with("focused_sheet_row")
+}
+
+/// Id of a row's label field (the same from any `Ui`), so focus can
+/// follow a moved row.
+fn label_id(index: usize) -> egui::Id {
+    egui::Id::unique("sheet_row_label").with(index)
+}
+
+/// Whether the widget with keyboard focus lies inside `rect`.
+fn has_focus_inside(ui: &egui::Ui, rect: egui::Rect) -> bool {
+    let focused = ui.memory(|m| m.focused());
+    focused.and_then(|id| ui.ctx().read_response(id)).is_some_and(|r| rect.contains_rect(r.rect))
+}
+
+/// Alt+Up/Down move the row whose field has focus (found last frame);
+/// the focus moves along to the row's label field.
+fn keyboard_move(ui: &mut egui::Ui, sheet: &mut Vec<SheetEntry>) {
+    let Some(i) = ui.data(|d| d.get_temp::<Option<usize>>(focused_row_id(ui))).flatten() else {
+        return;
+    };
+    let pressed = |ui: &mut egui::Ui, s| ui.input_mut(|inp| inp.consume_shortcut(&s));
+    let to = if pressed(ui, shortcuts::MOVE_ROW_UP) {
+        i.checked_sub(1)
+    } else if pressed(ui, shortcuts::MOVE_ROW_DOWN) {
+        Some(i + 1).filter(|t| *t < sheet.len())
+    } else {
+        None
+    };
+    if let Some(to) = to {
+        move_row(sheet, i, to);
+        let id = label_id(to);
+        ui.memory_mut(|m| m.request_focus(id));
+    }
 }
 
 /// What to do on an empty sheet, with the two ways to start.
@@ -141,6 +185,7 @@ fn row(
             .on_hover_text("Which section this row shows");
         ui.add(
             egui::TextEdit::singleline(&mut entry.label)
+                .id(label_id(index))
                 .hint_text(format!("Label: {section_name}"))
                 .desired_width(NAME_FIELD_W),
         )

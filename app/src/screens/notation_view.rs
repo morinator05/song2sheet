@@ -36,6 +36,8 @@ pub struct NotationView {
     texture: Option<TextureHandle>,
     beats: Vec<BeatBox>,
     page_width: f32,
+    /// Screen area of the last drawn highlight.
+    highlight: Option<Rect>,
 }
 
 impl NotationView {
@@ -65,12 +67,11 @@ impl NotationView {
         let painter = ui.painter_at(response.rect);
         let accent = crate::theme::palette(ui.ctx()).accent;
         let fill = accent.gamma_multiply(HIGHLIGHT_ALPHA);
+        self.highlight = None;
         for a in highlight_areas(&self.beats, highlight) {
-            painter.rect_filled(
-                to_screen(a.x0, a.y0 - REACH, a.x1, a.y1 + REACH),
-                HIGHLIGHT_ROUNDING,
-                fill,
-            );
+            let rect = to_screen(a.x0, a.y0 - REACH, a.x1, a.y1 + REACH);
+            painter.rect_filled(rect, HIGHLIGHT_ROUNDING, fill);
+            self.highlight = Some(self.highlight.map_or(rect, |r| r.union(rect)));
         }
         if let Highlight::Cursor(cursor) = highlight
             && let Some(b) = self.beats.iter().find(|b| is_at(b, cursor))
@@ -92,6 +93,11 @@ impl NotationView {
         let mm = (click - origin) / scale;
         let voice = if let Highlight::Cursor(c) = highlight { c.voice } else { 0 };
         hit(&self.beats, pos2(mm.x, mm.y), voice)
+    }
+
+    /// Where the highlight was drawn last frame, to scroll it into view.
+    pub fn highlight_rect(&self) -> Option<Rect> {
+        self.highlight
     }
 
     fn render(&mut self, ctx: &egui::Context, seg: &Segment, px_width: f32) {
