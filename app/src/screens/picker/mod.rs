@@ -10,12 +10,13 @@ use import::Score;
 use model::{Project, Segment, SheetEntry, StaffKind};
 
 use super::notation_view::{Highlight, NotationView};
-use super::widgets::{BLOCK_GAP, NAME_FIELD_W, SMALL_COMBO_W};
+use super::widgets::{
+    NAME_FIELD_W, PICKER_TITLE, SECTION_NAME_HINT, caption, card, combo, header, icons,
+    primary_enabled, secondary, staff_kind_options,
+};
 use crate::document::dialogs;
+use crate::theme::{self, metrics};
 use selection::{Selection, bar_range_label, chunks};
-
-/// Heading and toolbar label of this screen.
-pub const PICKER_TITLE: &str = "Import";
 
 #[derive(Default)]
 pub struct PickerState {
@@ -29,6 +30,8 @@ pub struct PickerState {
     add_to_sheet: bool,
     overview: Overview,
     message: String,
+    /// `message` is an error.
+    failed: bool,
 }
 
 /// The score cut into chunks for display, cached until the chosen parts or
@@ -60,11 +63,18 @@ impl Overview {
 
 impl PickerState {
     fn open(&mut self, project: &mut Project) {
-        let Some(path) = dialogs::open_score() else { return };
-        let score = match import::load(&path) {
+        if let Some(path) = dialogs::open_score() {
+            self.load(project, &path);
+        }
+    }
+
+    /// Loads the score at `path`, filling empty song details from it.
+    fn load(&mut self, project: &mut Project, path: &std::path::Path) {
+        let score = match import::load(path) {
             Ok(score) => score,
             Err(e) => {
                 self.message = e.to_string();
+                self.failed = true;
                 return;
             }
         };
@@ -116,45 +126,70 @@ impl PickerState {
     }
 }
 
-pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut PickerState) {
-    ui.heading(PICKER_TITLE);
-    ui.horizontal(|ui| {
-        if ui.button("Open score…").clicked() {
+pub fn show(
+    ui: &mut egui::Ui,
+    project: &mut Project,
+    state: &mut PickerState,
+) -> Option<super::Nav> {
+    header(ui, PICKER_TITLE, |ui| {
+        let open = icons::with(icons::OPEN, "Open score");
+        if secondary(ui, &open).on_hover_text("A MusicXML file (.musicxml, .xml, .mxl)").clicked() {
             state.open(project);
         }
-        ui.label(&state.file_name);
+        if !state.file_name.is_empty() {
+            caption(ui, &state.file_name);
+        }
     });
     if !state.message.is_empty() {
-        ui.label(&state.message);
+        let p = theme::palette(ui.ctx());
+        let (color, icon) =
+            if state.failed { (p.error, icons::ERROR) } else { (p.success, icons::SUCCESS) };
+        ui.colored_label(color, icons::with(icon, &state.message));
     }
     if state.score.is_none() {
-        ui.label("Export your song as MusicXML (MuseScore: File → Export; Guitar Pro: File → Export → MusicXML), open it here and pick the bars of each section.");
-        return;
+        card(ui, |ui| {
+            ui.label(
+                "Export your song as MusicXML, open it here and pick the bars of each section.",
+            );
+            caption(ui, "MuseScore: File → Export. Guitar Pro: File → Export → MusicXML.");
+        });
+        return None;
     }
-    parts(ui, state);
-    ui.separator();
-    selection_row(ui, project, state);
-    ui.add_space(BLOCK_GAP);
+    let dialog_open = ui.ctx().memory(|m| m.top_modal_layer().is_some());
+    if state.selection.is_some()
+        && !dialog_open
+        && !ui.ctx().text_edit_focused()
+        && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
+    {
+        state.selection = None; // Esc clears the selection before leaving the screen
+    }
+    card(ui, |ui| parts(ui, state));
+    ui.add_space(metrics::SPACE_S);
+    egui::Panel::bottom("picker_create")
+        .frame(
+            egui::Frame::new()
+                .inner_margin(egui::Margin { top: metrics::SPACE_S as i8, ..Default::default() }),
+        )
+        .show_separator_line(false)
+        .show(ui, |ui| card(ui, |ui| selection_row(ui, project, state)));
     overview(ui, state);
+    None
 }
 
 fn parts(ui: &mut egui::Ui, state: &mut PickerState) {
     let Some(score) = state.score.as_mut() else { return };
-    ui.label("Parts");
-    for (i, part) in score.parts.iter_mut().enumerate() {
-        ui.horizontal(|ui| {
+    let kinds = staff_kind_options();
+    egui::Grid::new("picker_parts").num_columns(2).show(ui, |ui| {
+        ui.strong("Part");
+        ui.strong("Instrument");
+        ui.end_row();
+        for (i, part) in score.parts.iter_mut().enumerate() {
             ui.checkbox(&mut state.use_part[i], &part.name);
-            let kind = &mut part.staff.kind;
-            let combo = egui::ComboBox::from_id_salt(("part_kind", i))
-                .selected_text(kind.name())
-                .width(SMALL_COMBO_W);
-            combo.show_ui(ui, |ui| {
-                for k in StaffKind::ALL {
-                    ui.selectable_value(kind, k, k.name());
-                }
-            });
-        });
-    }
+            combo(ui, ("part_kind", i), &mut part.staff.kind, &kinds)
+                .on_hover_text("How this part is drawn and which part sheet it belongs to");
+            ui.end_row();
+        }
+    });
 }
 
 fn selection_row(ui: &mut egui::Ui, project: &mut Project, state: &mut PickerState) {
@@ -169,14 +204,31 @@ fn selection_row(ui: &mut egui::Ui, project: &mut Project, state: &mut PickerSta
     ui.label(text);
     ui.horizontal(|ui| {
         ui.label("Name");
-        ui.add(
+        let field = ui.add(
             egui::TextEdit::singleline(&mut state.name)
-                .hint_text("e.g. Verse")
+                .hint_text(SECTION_NAME_HINT)
                 .desired_width(NAME_FIELD_W),
         );
-        ui.checkbox(&mut state.add_to_sheet, "add to sheet");
-        let ready = !state.name.trim().is_empty() && !state.chosen_parts().is_empty();
-        if ui.add_enabled(ready, egui::Button::new("Create section")).clicked()
+        ui.checkbox(&mut state.add_to_sheet, "Add to sheet");
+        let why = if state.chosen_parts().is_empty() {
+            Some("Choose at least one part")
+        } else if state.name.trim().is_empty() {
+            Some("Enter a name")
+        } else {
+            None
+        };
+        let create = primary_enabled(
+            ui,
+            why.is_none(),
+            &icons::with(icons::ADD, "Create section"),
+            why.unwrap_or_default(),
+        );
+        if let Some(why) = why {
+            caption(ui, why);
+        }
+        let entered = field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+        if why.is_none()
+            && (create.clicked() || entered)
             && let Some(done) = state.create(project)
         {
             state.message = done;
@@ -192,7 +244,7 @@ fn overview(ui: &mut egui::Ui, state: &mut PickerState) {
     let mut clicked = None;
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
         for (chunk, seg, view) in &mut state.overview.chunks {
-            ui.label(bar_range_label(&score.bars, chunk));
+            caption(ui, bar_range_label(&score.bars, chunk));
             let selected = state.selection.as_ref().map(|s| s.within(chunk)).unwrap_or_default();
             if let Some(b) = view.show(ui, seg, Highlight::Bars(&selected)) {
                 clicked = Some(chunk.start + b.bar);

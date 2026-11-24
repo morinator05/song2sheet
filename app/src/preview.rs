@@ -5,6 +5,7 @@ use eframe::egui::{self, ColorImage, TextureHandle, TextureOptions};
 use model::{PartFilter, Project};
 
 use crate::screens::widgets::{BLOCK_GAP, image_widths};
+use crate::theme;
 
 #[derive(Default)]
 pub struct Preview {
@@ -25,11 +26,15 @@ impl Preview {
             self.render(ui.ctx(), project, filter, px_width);
         }
 
+        let shadow = theme::paper_shadow(&theme::palette(ui.ctx()));
         egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
             for tex in &self.pages {
                 let size = tex.size_vec2();
                 let scaled = egui::vec2(width, width * size.y / size.x);
-                ui.add(egui::Image::new((tex.id(), scaled)));
+                // Paper on the panel: the page with a soft shadow.
+                egui::Frame::new().shadow(shadow).show(ui, |ui| {
+                    ui.add(egui::Image::new((tex.id(), scaled)));
+                });
                 ui.add_space(BLOCK_GAP);
             }
         });

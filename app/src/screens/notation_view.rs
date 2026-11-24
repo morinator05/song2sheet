@@ -3,9 +3,7 @@
 
 use std::ops::Range;
 
-use eframe::egui::{
-    self, Color32, ColorImage, Rect, Sense, TextureHandle, TextureOptions, pos2, vec2,
-};
+use eframe::egui::{self, ColorImage, Rect, Sense, TextureHandle, TextureOptions, pos2, vec2};
 use engrave::BeatBox;
 use model::Segment;
 
@@ -19,7 +17,8 @@ const HIGHLIGHT_ALPHA: f32 = 0.35;
 const HIGHLIGHT_ROUNDING: f32 = 2.0;
 /// Half height (mm) of the mark on the selected tab string.
 const STRING_MARK_HALF_H: f32 = 0.6;
-const STRING_MARK_COLOR: Color32 = Color32::from_rgba_premultiplied(110, 30, 30, 110);
+/// Opacity of the string mark (stronger than the beat highlight).
+const STRING_MARK_ALPHA: f32 = 0.8;
 
 /// What to highlight.
 #[derive(Clone, Copy, Debug)]
@@ -64,7 +63,8 @@ impl NotationView {
         };
 
         let painter = ui.painter_at(response.rect);
-        let fill = ui.visuals().selection.bg_fill.gamma_multiply(HIGHLIGHT_ALPHA);
+        let accent = crate::theme::palette(ui.ctx()).accent;
+        let fill = accent.gamma_multiply(HIGHLIGHT_ALPHA);
         for a in highlight_areas(&self.beats, highlight) {
             painter.rect_filled(
                 to_screen(a.x0, a.y0 - REACH, a.x1, a.y1 + REACH),
@@ -77,7 +77,11 @@ impl NotationView {
             && let Some(y) = string_y(seg, cursor, b)
         {
             let mark = to_screen(b.x0, y - STRING_MARK_HALF_H, b.x1, y + STRING_MARK_HALF_H);
-            painter.rect_filled(mark, HIGHLIGHT_ROUNDING / 2.0, STRING_MARK_COLOR);
+            painter.rect_filled(
+                mark,
+                HIGHLIGHT_ROUNDING / 2.0,
+                accent.gamma_multiply(STRING_MARK_ALPHA),
+            );
         }
 
         let click = response.clicked().then(|| response.interact_pointer_pos()).flatten()?;
