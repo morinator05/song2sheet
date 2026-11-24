@@ -211,7 +211,7 @@ fn parts(ui: &mut egui::Ui, state: &mut PickerState) {
     let Some(score) = state.score.as_mut() else { return };
     let kinds = staff_kind_options();
     egui::Grid::new("picker_parts").num_columns(2).show(ui, |ui| {
-        ui.strong("Part");
+        ui.strong("Score part");
         ui.strong("Instrument");
         ui.end_row();
         for (i, part) in score.parts.iter_mut().enumerate() {

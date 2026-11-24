@@ -29,10 +29,7 @@ enum RowAction {
 pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -> Option<Nav> {
     let rows = project.sheet.len();
     header(ui, SHEET_TITLE, |ui| {
-        caption(
-            ui,
-            format!("{} · drag the handle to reorder · double-click to edit", count(rows, "row")),
-        );
+        caption(ui, count(rows, "row"));
     });
     if project.sheet.is_empty() {
         return empty_state(ui, project);
@@ -125,6 +122,17 @@ fn keyboard_move(ui: &mut egui::Ui, sheet: &mut Vec<SheetEntry>) {
     }
 }
 
+/// Tooltip of the drag handle: the ways to rearrange and open a row.
+fn handle_tip(ctx: &egui::Context) -> String {
+    let (up, down) = (
+        ctx.format_shortcut(&shortcuts::MOVE_ROW_UP),
+        ctx.format_shortcut(&shortcuts::MOVE_ROW_DOWN),
+    );
+    format!(
+        "Drag to reorder (or {up} / {down} while editing the row); double-click a row to edit it"
+    )
+}
+
 /// What to do on an empty sheet, with the two ways to start.
 fn empty_state(ui: &mut egui::Ui, project: &mut Project) -> Option<Nav> {
     ui.add_space(BLOCK_GAP);
@@ -168,11 +176,13 @@ fn row(
     ui.horizontal(|ui| {
         let weak = theme::palette(ui.ctx()).weak_text;
         let handle = match icons::image(ui.ctx(), Icon::Drag, weak) {
-            Some(img) => ui.add(img.sense(egui::Sense::drag())),
-            None => ui.add(
-                egui::Label::new(egui::RichText::new(Icon::Drag.glyph()).color(weak))
-                    .sense(egui::Sense::drag()),
-            ),
+            Some(img) => ui.add(img.sense(egui::Sense::drag())).on_hover_text(handle_tip(ui.ctx())),
+            None => ui
+                .add(
+                    egui::Label::new(egui::RichText::new(Icon::Drag.glyph()).color(weak))
+                        .sense(egui::Sense::drag()),
+                )
+                .on_hover_text(handle_tip(ui.ctx())),
         };
         handle.dnd_set_drag_payload(index);
         if handle.hovered() {
@@ -238,7 +248,7 @@ fn part_comments(ui: &mut egui::Ui, index: usize, comments: &mut Vec<PartComment
     if let Some(ci) = remove {
         comments.remove(ci);
     }
-    if icon_button(ui, Icon::Add, "Part comment")
+    if icon_button(ui, Icon::Add, "Add part comment")
         .on_hover_text("Comment shown only on one part's sheet")
         .clicked()
     {

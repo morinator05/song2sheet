@@ -15,8 +15,8 @@ use model::{Project, Segment, SegmentId, StaffKind, edit};
 use super::Nav;
 use super::notation_view::{Highlight, NotationView};
 use super::widgets::{
-    BLOCK_GAP, EDITOR_TITLE, Icon, SHEET_TITLE, SHORT_FIELD_W, caption, card, header, icon_button,
-    icons, keys_free, menu,
+    BLOCK_GAP, EDITOR_TITLE, Icon, SHORT_FIELD_W, caption, card, header, hint, icon_button, icons,
+    keys_free, menu,
 };
 use crate::status::{self, Kind};
 use crate::theme;
@@ -120,8 +120,8 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, state: &mut EditorState) -
                 ui.label(line);
             }
         });
-        let back = format!("Back to the sheet ({})", crate::shortcuts::BACK.name());
-        icon_button(ui, Icon::Back, SHEET_TITLE).on_hover_text(back).clicked()
+        let back = hint("Back to the sheet", crate::shortcuts::BACK.name());
+        icon_button(ui, Icon::Back, "Back to sheet").on_hover_text(back).clicked()
     });
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
         card(ui, |ui| {

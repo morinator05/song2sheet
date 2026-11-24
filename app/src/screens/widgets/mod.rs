@@ -53,11 +53,12 @@ pub fn image_widths(ui: &egui::Ui) -> (f32, f32) {
     (width, px)
 }
 
-/// Checkbox + BPM field for an optional tempo.
-pub fn optional_bpm(ui: &mut egui::Ui, tempo: &mut Option<u32>) {
+/// Checkbox (labelled `label`, may be empty) + BPM field for an optional
+/// tempo.
+pub fn optional_bpm(ui: &mut egui::Ui, label: &str, tempo: &mut Option<u32>) {
     ui.horizontal(|ui| {
         let mut on = tempo.is_some();
-        if ui.checkbox(&mut on, "").on_hover_text("Show a tempo").changed() {
+        if ui.checkbox(&mut on, label).on_hover_text("Print a tempo").changed() {
             *tempo = on.then_some(DEFAULT_BPM);
         }
         if let Some(bpm) = tempo {
@@ -70,6 +71,11 @@ pub fn optional_bpm(ui: &mut egui::Ui, tempo: &mut Option<u32>) {
             );
         }
     });
+}
+
+/// Tooltip of a control with a shortcut: "What it does (Shortcut)".
+pub fn hint(what: &str, shortcut: impl std::fmt::Display) -> String {
+    format!("{what} ({shortcut})")
 }
 
 /// Whether a dialog or a menu (popup, open combo box) is open; keys then

@@ -6,7 +6,7 @@ use model::{PartFilter, Project, StaffKind};
 
 use super::{App, Discarding, Screen};
 use crate::screens::widgets::{
-    EDITOR_TITLE, Icon, PICKER_TITLE, SHEET_TITLE, caption, combo, count, ghost, header,
+    EDITOR_TITLE, Icon, PICKER_TITLE, SHEET_TITLE, caption, combo, count, ghost, header, hint,
     icon_button, menu, primary_enabled, secondary, toggle,
 };
 use crate::shortcuts as keys;
@@ -23,21 +23,25 @@ impl App {
         let ctx = ui.ctx().clone();
         let tip = |s| ctx.format_shortcut(&s);
         ui.horizontal(|ui| {
-            if icon_button(ui, Icon::New, "New").on_hover_text(tip(keys::NEW)).clicked() {
+            let new = hint("Start a new song", tip(keys::NEW));
+            if icon_button(ui, Icon::New, "New song").on_hover_text(new).clicked() {
                 self.request(ui.ctx(), Discarding::New);
             }
-            if icon_button(ui, Icon::Open, "Open").on_hover_text(tip(keys::OPEN)).clicked() {
+            let open = hint("Open a song file", tip(keys::OPEN));
+            if icon_button(ui, Icon::Open, "Open song").on_hover_text(open).clicked() {
                 self.request(ui.ctx(), Discarding::Open);
             }
             self.recent_menu(ui);
-            if icon_button(ui, Icon::Save, "Save").on_hover_text(tip(keys::SAVE)).clicked() {
+            let save = hint("Save the song", tip(keys::SAVE));
+            if icon_button(ui, Icon::Save, "Save").on_hover_text(save).clicked() {
                 self.save_file(ui.ctx(), false);
             }
-            if secondary(ui, "Save as").on_hover_text(tip(keys::SAVE_AS)).clicked() {
+            let save_as = hint("Save under a new name", tip(keys::SAVE_AS));
+            if secondary(ui, "Save as").on_hover_text(save_as).clicked() {
                 self.save_file(ui.ctx(), true);
             }
             ui.separator();
-            let undo = format!("Undo ({})", tip(keys::UNDO));
+            let undo = hint("Undo", tip(keys::UNDO));
             if ui
                 .add_enabled_ui(self.history.can_undo(), |ui| ghost(ui, Icon::Undo, &undo))
                 .inner
@@ -45,7 +49,7 @@ impl App {
             {
                 self.undo(ui.ctx(), false);
             }
-            let redo = format!("Redo ({})", tip(keys::REDO));
+            let redo = hint("Redo", tip(keys::REDO));
             if ui
                 .add_enabled_ui(self.history.can_redo(), |ui| ghost(ui, Icon::Redo, &redo))
                 .inner
@@ -59,7 +63,10 @@ impl App {
                 (Screen::Editor, EDITOR_TITLE, keys::SHOW_EDITOR),
                 (Screen::Picker, PICKER_TITLE, keys::SHOW_PICKER),
             ] {
-                if toggle(ui, self.screen == screen, title).on_hover_text(tip(shortcut)).clicked() {
+                if toggle(ui, self.screen == screen, title)
+                    .on_hover_text(hint(title, tip(shortcut)))
+                    .clicked()
+                {
                     self.screen = screen;
                 }
             }
@@ -87,11 +94,12 @@ impl App {
             let options = part_options(&self.doc.project, self.filter);
             combo(ui, "part_filter", &mut self.filter, &options).on_hover_text(PART_HINT);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let hint = ui.ctx().format_shortcut(&keys::EXPORT);
+                let tip =
+                    hint("Export the chosen part as PDF", ui.ctx().format_shortcut(&keys::EXPORT));
                 let empty = self.doc.project.sheet.is_empty();
                 let why = "The sheet has no rows yet";
                 let export = primary_enabled(ui, !empty, Icon::Export, "Export PDF", why);
-                if export.on_hover_text(hint).clicked() {
+                if export.on_hover_text(tip).clicked() {
                     self.export_pdf(ui.ctx());
                 }
             });

@@ -22,13 +22,13 @@ pub fn show(ui: &mut egui::Ui, project: &mut Project, open: Option<SegmentId>) -
             card(ui, |ui| song_details(ui, project));
             ui.add_space(BLOCK_GAP);
             let nav = header(ui, "Sections", |ui| {
-                if icon_button(ui, Icon::Add, "New")
+                if icon_button(ui, Icon::Add, "New section")
                     .on_hover_text("New empty section, opened in the editor")
                     .clicked()
                 {
                     return Some(Nav::Edit(new_section(project)));
                 }
-                if icon_button(ui, Icon::Import, "Import")
+                if icon_button(ui, Icon::Import, "Import score")
                     .on_hover_text("Take sections from a MusicXML score")
                     .clicked()
                 {
@@ -62,7 +62,7 @@ fn song_details(ui: &mut egui::Ui, project: &mut Project) {
             ui.end_row();
         }
         ui.label(TEMPO_LABEL);
-        optional_bpm(ui, &mut meta.tempo);
+        optional_bpm(ui, "", &mut meta.tempo);
         ui.end_row();
     });
     ui.label("Notes");
