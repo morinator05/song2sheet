@@ -122,6 +122,30 @@ pub struct Block {
     pub staff_labels: Vec<StaffLabel>,
     /// Where each beat is, for editors.
     pub beats: Vec<BeatBox>,
+    /// Where each system is, top to bottom.
+    pub systems: Vec<SystemSpan>,
+}
+
+/// The vertical extent of one system (all its staves).
+#[derive(Clone, Debug, PartialEq)]
+pub struct SystemSpan {
+    /// The bars it shows.
+    pub bars: Range<usize>,
+    /// Top and bottom of everything drawn (chord symbols, stems).
+    pub top: f32,
+    pub bottom: f32,
+    /// Top line of the first staff and bottom line of the last.
+    pub y0: f32,
+    pub y1: f32,
+}
+
+impl SystemSpan {
+    pub fn translate(&mut self, dy: f32) {
+        self.top += dy;
+        self.bottom += dy;
+        self.y0 += dy;
+        self.y1 += dy;
+    }
 }
 
 /// Area covered by one beat: from just before its notehead to the next
@@ -150,14 +174,23 @@ impl BeatBox {
 
 #[derive(Clone, Debug)]
 pub struct StaffLabel {
+    /// Index of the staff in the engraved list.
+    pub staff: usize,
     /// Vertical centre of the staff.
     pub y: f32,
     pub text: String,
 }
 
 /// Engraves `staves` (all from `seg`) into systems that fit `width`.
-/// `repeat` draws repeat barlines around the whole segment.
-pub fn engrave_segment(seg: &Segment, staves: &[&Staff], width: f32, repeat: bool) -> Block {
+/// `repeat` draws repeat barlines around the whole segment. `spacing` only
+/// moves things vertically, so it never changes the line breaks.
+pub fn engrave_segment(
+    seg: &Segment,
+    staves: &[&Staff],
+    width: f32,
+    repeat: bool,
+    spacing: Spacing,
+) -> Block {
     let bar_count = staves.iter().map(|s| s.bars.len()).max().unwrap_or(0);
     if bar_count == 0 {
         return Block::default();
@@ -179,6 +212,8 @@ pub fn engrave_segment(seg: &Segment, staves: &[&Staff], width: f32, repeat: boo
     let mut block = Block::default();
     let mut y = 0.0;
     for sys in &systems {
+        let top = y;
+        let mut lines: Option<(f32, f32)> = None;
         for (staff_index, (staff, &style)) in staves.iter().zip(&styles).enumerate() {
             let mut items = engrave_staff(staff, style, seg, sys, repeat);
             let (top, bottom) = bbox_of(&items).map_or((0.0, 0.0), |b| (b.y0, b.y1));
@@ -192,15 +227,22 @@ pub fn engrave_segment(seg: &Segment, staves: &[&Staff], width: f32, repeat: boo
                 },
             ));
             let label = StaffLabel {
+                staff: staff_index,
                 y: dy + style.height() / 2.0,
                 text: staff.display_label().to_string(),
             };
             block.staff_labels.push(label);
-            y = dy + bottom.max(style.height()) + STAFF_GAP;
+            lines = Some((lines.map_or(dy, |(y0, _)| y0), dy + style.height()));
+            y = dy + bottom.max(style.height()) + spacing.staff_gap;
         }
-        y += SYSTEM_GAP - STAFF_GAP;
+        if let (Some((y0, y1)), Some(first), Some(last)) = (lines, sys.bars.first(), sys.bars.last())
+        {
+            let bottom = y - spacing.staff_gap;
+            block.systems.push(SystemSpan { bars: first.index..last.index + 1, top, bottom, y0, y1 });
+        }
+        y += spacing.system_gap - spacing.staff_gap;
     }
-    block.height = (y - SYSTEM_GAP).max(0.0);
+    block.height = (y - spacing.system_gap).max(0.0);
     block
 }
 

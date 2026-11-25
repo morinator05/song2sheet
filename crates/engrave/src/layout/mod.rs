@@ -5,6 +5,7 @@ mod row;
 mod segment;
 mod text;
 
+pub use row::has_staff_labels;
 pub use segment::{SegmentView, layout_segment};
 
 use model::{PartFilter, Project};

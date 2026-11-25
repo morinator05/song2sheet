@@ -11,5 +11,5 @@ mod smufl;
 
 pub use display::{A4_HEIGHT, A4_WIDTH, BBox, DisplayList, Item, Page, Shade};
 pub use fonts::FontId;
-pub use layout::{SegmentView, layout_segment, layout_sheet};
-pub use notation::BeatBox;
+pub use layout::{SegmentView, has_staff_labels, layout_segment, layout_sheet};
+pub use notation::{BeatBox, StaffLabel, SystemSpan};

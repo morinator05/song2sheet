@@ -32,8 +32,28 @@ pub const CLEF_W: f32 = 3.0 * SP;
 pub const TIME_SIG_PAD: f32 = 1.0 * SP;
 pub const REPEAT_W: f32 = 1.8 * SP;
 
+/// Gaps between the staves of a system and between systems: compact on
+/// the sheet …
 pub const STAFF_GAP: f32 = 1.5;
 pub const SYSTEM_GAP: f32 = 3.0;
+/// … roomier on screen, where many staves must not run into each other.
+pub const SCREEN_STAFF_GAP: f32 = 4.0;
+pub const SCREEN_SYSTEM_GAP: f32 = 8.0;
+
+/// Vertical room between staves and between systems.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Spacing {
+    pub staff_gap: f32,
+    pub system_gap: f32,
+}
+
+impl Spacing {
+    /// The printed sheet.
+    pub const PRINT: Spacing = Spacing { staff_gap: STAFF_GAP, system_gap: SYSTEM_GAP };
+    /// A section shown on its own in the app.
+    pub const SCREEN: Spacing =
+        Spacing { staff_gap: SCREEN_STAFF_GAP, system_gap: SCREEN_SYSTEM_GAP };
+}
 /// Bars are never stretched wider than this on average.
 pub const MAX_BAR_W: f32 = 55.0;
 /// Bars may be squeezed down to this fraction of their natural width.

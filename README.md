@@ -64,26 +64,38 @@ Songs are saved as `*.s2s.json`: small text files that are easy to send around o
 
 ## Installation
 
-song2sheet is a native desktop app written in Rust. It is developed on Linux. There are no prebuilt downloads yet, so you build it yourself:
+song2sheet is a native desktop app written in Rust for Linux, macOS and Windows. It is developed on Linux; the macOS and Windows builds are tested automatically but see less use. There are no prebuilt downloads yet, so you build it yourself:
 
 1. Install Rust from <https://rustup.rs>.
-2. Clone this repository and, inside it, run:
+2. Clone this repository and, inside it, run the install script for your system.
 
-   ```sh
-   ./install.sh              # for your user: ~/.local/bin and ~/.local/share/applications
-   ./install.sh --system     # or for all users: /usr/local (uses sudo)
-   ```
+**Linux and macOS:**
 
-   This builds the app, installs the `song2sheet` command and adds song2sheet to your app menu, with its icon in the launcher and taskbar. Then start it from the menu, or from a terminal:
+```sh
+./install.sh              # for your user
+./install.sh --system     # or for all users (uses sudo)
+```
 
-   ```sh
-   song2sheet                     # start the app
-   song2sheet song.s2s.json       # start with a song open
-   ```
+This builds the app and installs the `song2sheet` command, in `~/.local/bin` (or `/usr/local/bin` for all users). On Linux it also adds song2sheet to your app menu. On macOS it puts song2sheet in your Applications folder (`~/Applications`, or `/Applications` for all users). Then start it from there, or from a terminal:
 
-   To remove it, run `./install.sh --uninstall` (with `--system` if you installed it for all users). To try it without installing, run `cargo run --release -p song2sheet`. If you installed an earlier version with `cargo install`, remove that copy with `cargo uninstall song2sheet`, or it may run instead of the new one.
+```sh
+song2sheet                     # start the app
+song2sheet song.s2s.json       # start with a song open
+```
 
-The app takes its icon from your icon theme (the music note `audio-x-generic`) and follows KDE's light/dark colours and accent colour.
+To remove it, run `./install.sh --uninstall` (with `--system` if you installed it for all users). If you installed an earlier version with `cargo install`, remove that copy with `cargo uninstall song2sheet`, or it may run instead of the new one.
+
+**Windows** (in PowerShell):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+This builds the app, installs it for your user in `%LOCALAPPDATA%\Programs\song2sheet` and adds it to the Start menu. To remove it, run the same command with `-Uninstall` at the end.
+
+To try song2sheet without installing it, run `cargo run --release -p song2sheet`.
+
+On Linux, the app takes its icon from your icon theme (the music note `audio-x-generic`) and follows KDE's light/dark colours and accent colour. On macOS and Windows it has no app icon yet.
 
 Under the hood, the UI is built with egui. The notation is engraved with the Bravura music font, and the preview and the PDF are drawn by the same code, which is why they always match.
 

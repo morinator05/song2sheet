@@ -14,7 +14,12 @@ env:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    name: Check (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -22,6 +27,7 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Format
+        if: runner.os == 'Linux'
         run: cargo fmt --all --check
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
@@ -31,6 +37,46 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-output
+          name: test-output-${{ matrix.os }}
           path: target/test-output/
           if-no-files-found: ignore
+
+  install:
+    name: Install script (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install and uninstall
+        if: runner.os != 'Windows'
+        run: |
+          set -eux
+          if [ "$RUNNER_OS" = macOS ]; then
+            user="$HOME/.local/bin/song2sheet $HOME/Applications/song2sheet.app/Contents/Info.plist"
+            system="/usr/local/bin/song2sheet /Applications/song2sheet.app/Contents/Info.plist"
+          else
+            user="$HOME/.local/bin/song2sheet $HOME/.local/share/applications/song2sheet.desktop"
+            system="/usr/local/bin/song2sheet /usr/local/share/applications/song2sheet.desktop"
+          fi
+          ./install.sh;                      for f in $user; do test -e "$f"; done
+          ./install.sh --uninstall;          for f in $user; do test ! -e "$f"; done
+          ./install.sh --system;             for f in $system; do test -e "$f"; done
+          ./install.sh --system --uninstall; for f in $system; do test ! -e "$f"; done
+      - name: Install and uninstall (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $exe = "$env:LOCALAPPDATA\Programs\song2sheet\song2sheet.exe"
+          $link = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\song2sheet.lnk"
+          powershell -ExecutionPolicy Bypass -File install.ps1
+          if ($LASTEXITCODE) { exit 1 }
+          $target = (New-Object -ComObject WScript.Shell).CreateShortcut($link).TargetPath
+          if (-not (Test-Path $exe) -or $target -ne $exe) { throw "not installed (shortcut: $target)" }
+          powershell -ExecutionPolicy Bypass -File install.ps1 -Uninstall
+          if ($LASTEXITCODE) { exit 1 }
+          if ((Test-Path $exe) -or (Test-Path $link)) { throw 'not removed' }
