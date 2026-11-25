@@ -5,7 +5,7 @@ use model::{PartFilter, Project, Segment, SheetEntry, Staff};
 use super::text::{right_aligned, tempo_mark, text, wrap};
 use crate::display::Item;
 use crate::fonts::FontId;
-use crate::notation::{self, Spacing, StaffLabel};
+use crate::notation::{self, BeatBox, StaffLabel};
 
 /// Width of the left column with section name, tempo and repeat count.
 const LEFT_COL: f32 = 30.0;
@@ -84,31 +84,44 @@ fn left_column(project: &Project, entry: &SheetEntry, seg: &Segment) -> (Vec<Ite
     (items, y + LEFT_COL_BOTTOM_PAD)
 }
 
-/// The engraved staves shown by `filter`, with their labels. Returns items
-/// and bottom y (0 if nothing is shown).
+/// The engraved staves shown by `filter`. Returns items and bottom y
+/// (0 if nothing is shown).
 fn notation(entry: &SheetEntry, seg: &Segment, filter: PartFilter, width: f32) -> (Vec<Item>, f32) {
     let staves: Vec<&Staff> = seg.staves.iter().filter(|s| filter.shows(s.kind)).collect();
-    let x = LEFT_COL + label_strip_w(staves.len());
-    let repeat = entry.repeat > 1;
-    let block = notation::engrave_segment(seg, &staves, width - x, repeat, Spacing::PRINT);
+    let placed = place_notation(seg, &staves, entry.repeat > 1, LEFT_COL, NOTATION_TOP, width);
+    (placed.items, placed.bottom)
+}
+
+/// Engraved staves with their labels, positioned on the page.
+pub struct PlacedNotation {
+    pub items: Vec<Item>,
+    pub beats: Vec<BeatBox>,
+    /// Bottom y, or 0 if nothing was engraved.
+    pub bottom: f32,
+}
+
+/// Engraves `staves` between `left` and `right` with the top at `top`.
+/// With several staves, the first `STAFF_LABEL_W` holds their labels.
+pub fn place_notation(
+    seg: &Segment,
+    staves: &[&Staff],
+    repeat: bool,
+    left: f32,
+    top: f32,
+    right: f32,
+) -> PlacedNotation {
+    let labelled = staves.len() > 1;
+    let x = left + if labelled { STAFF_LABEL_W } else { 0.0 };
+    let block = notation::engrave_segment(seg, staves, right - x, repeat);
     let mut items = block.items;
-    items.iter_mut().for_each(|it| it.translate(x, NOTATION_TOP));
-    if has_staff_labels(staves.len()) {
-        items.extend(staff_labels(&block.staff_labels, x - STAFF_LABEL_GAP, NOTATION_TOP));
+    items.iter_mut().for_each(|it| it.translate(x, top));
+    if labelled {
+        items.extend(staff_labels(&block.staff_labels, x - STAFF_LABEL_GAP, top));
     }
-    let bottom = if block.height > 0.0 { NOTATION_TOP + block.height } else { 0.0 };
-    (items, bottom)
-}
-
-/// Whether staves are labelled with their names: only when there are
-/// several.
-pub fn has_staff_labels(staff_count: usize) -> bool {
-    staff_count > 1
-}
-
-/// Width the staff labels take left of `staff_count` staves.
-pub fn label_strip_w(staff_count: usize) -> f32 {
-    if has_staff_labels(staff_count) { STAFF_LABEL_W } else { 0.0 }
+    let mut beats = block.beats;
+    beats.iter_mut().for_each(|b| b.translate(x, top));
+    let bottom = if block.height > 0.0 { top + block.height } else { 0.0 };
+    PlacedNotation { items, beats, bottom }
 }
 
 /// Width available to a row's notation (labels included).

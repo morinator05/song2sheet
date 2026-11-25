@@ -13,5 +13,4 @@ mod metrics;
 mod staff;
 mod systems;
 
-pub use metrics::Spacing;
-pub use systems::{BeatBox, StaffLabel, SystemSpan, engrave_segment};
+pub use systems::{BeatBox, StaffLabel, engrave_segment};
