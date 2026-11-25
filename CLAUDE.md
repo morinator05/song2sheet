@@ -14,7 +14,10 @@ cargo test --workspace
 cargo test -p engrave beam                    # single test(s): -p <crate> <name filter>
 cargo fmt                                     # rustfmt.toml: use_small_heuristics = "Max"
 cargo clippy --all-targets -- -D warnings
+./install.sh [--system] [--uninstall]         # install (Linux, macOS); install.ps1 on Windows
 ```
+
+CI (`.github/workflows/ci.yml`) runs clippy and the tests on Linux, macOS and Windows, and installs and uninstalls with the install scripts on each.
 
 `tests/fixtures/groove.musicxml` and `groove.mxl` are real MuseScore exports. If MuseScore is installed, make new fixtures by writing or editing a score and running `QT_QPA_PLATFORM=offscreen mscore -o out.musicxml in.musicxml`. Real files contain a `<!DOCTYPE>`, so the parser must allow DTDs.
 
