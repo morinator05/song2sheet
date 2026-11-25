@@ -71,7 +71,7 @@ song2sheet is a native desktop app written in Rust. It is developed on Linux. Th
 
    ```sh
    ./install.sh              # for your user: ~/.local/bin and ~/.local/share/applications
-   ./install.sh --system     # or for all users: /usr/local (asks for your sudo password)
+   ./install.sh --system     # or for all users: /usr/local (uses sudo)
    ```
 
    This builds the app, installs the `song2sheet` command and adds song2sheet to your app menu, with its icon in the launcher and taskbar. Then start it from the menu, or from a terminal:
@@ -81,7 +81,7 @@ song2sheet is a native desktop app written in Rust. It is developed on Linux. Th
    song2sheet song.s2s.json       # start with a song open
    ```
 
-   To remove it, run `./install.sh --uninstall` (with `--system` if you installed it for all users). To try it without installing, run `cargo run --release -p song2sheet`.
+   To remove it, run `./install.sh --uninstall` (with `--system` if you installed it for all users). To try it without installing, run `cargo run --release -p song2sheet`. If you installed an earlier version with `cargo install`, remove that copy with `cargo uninstall song2sheet`, or it may run instead of the new one.
 
 The app takes its icon from your icon theme (the music note `audio-x-generic`) and follows KDE's light/dark colours and accent colour.
 

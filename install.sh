@@ -8,19 +8,22 @@ set -eu
 
 cd "$(dirname "$0")"
 
+# Building as root would leave root-owned files in target/.
+if [ -n "${SUDO_USER:-}" ]; then
+    echo "Run this without sudo: --system uses sudo itself, only to copy the files." >&2
+    exit 1
+fi
+
 prefix="$HOME/.local"
 sudo=""
 uninstall=false
 for arg in "$@"; do
     case "$arg" in
-        --system) prefix="/usr/local" ;;
+        --system) prefix="/usr/local"; sudo="sudo" ;;
         --uninstall) uninstall=true ;;
         *) echo "unknown option: $arg" >&2; exit 1 ;;
     esac
 done
-if [ ! -w "$(dirname "$prefix")" ] || { [ -d "$prefix" ] && [ ! -w "$prefix" ]; }; then
-    [ "$(id -u)" -eq 0 ] || sudo="sudo"
-fi
 
 bin="$prefix/bin/song2sheet"
 desktop="$prefix/share/applications/song2sheet.desktop"
@@ -31,14 +34,16 @@ if $uninstall; then
     exit 0
 fi
 
+target="${CARGO_TARGET_DIR:-target}"
 cargo build --release -p song2sheet
-$sudo install -Dm755 "${CARGO_TARGET_DIR:-target}/release/song2sheet" "$bin"
 
-# An absolute Exec path, so the launcher works even if $prefix/bin is not
-# on the desktop session's PATH.
-entry="$(mktemp)"
-trap 'rm -f "$entry"' EXIT
-sed "s|^Exec=song2sheet|Exec=$bin|" assets/song2sheet.desktop > "$entry"
+# An absolute, quoted Exec path, so the launcher works even if $prefix/bin is
+# not on the desktop session's PATH.
+entry="$target/song2sheet.desktop"
+sed '/^Exec=/d' assets/song2sheet.desktop > "$entry"
+printf 'Exec="%s" %%f\n' "$bin" >> "$entry"
+
+$sudo install -Dm755 "$target/release/song2sheet" "$bin"
 $sudo install -Dm644 "$entry" "$desktop"
 
 echo "Installed $bin and $desktop"
