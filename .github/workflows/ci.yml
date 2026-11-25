@@ -63,10 +63,13 @@ jobs:
             user="$HOME/.local/bin/song2sheet $HOME/.local/share/applications/song2sheet.desktop"
             system="/usr/local/bin/song2sheet /usr/local/share/applications/song2sheet.desktop"
           fi
-          ./install.sh;                      for f in $user; do test -e "$f"; done
-          ./install.sh --uninstall;          for f in $user; do test ! -e "$f"; done
-          ./install.sh --system;             for f in $system; do test -e "$f"; done
-          ./install.sh --system --uninstall; for f in $system; do test ! -e "$f"; done
+          present() { for f; do test -e "$f"; done; }
+          # -L as well, since -e misses a dangling symlink.
+          absent() { for f; do if test -e "$f" || test -L "$f"; then exit 1; fi; done; }
+          ./install.sh;                      present $user
+          ./install.sh --uninstall;          absent $user
+          ./install.sh --system;             present $system
+          ./install.sh --system --uninstall; absent $system
       - name: Install and uninstall (Windows)
         if: runner.os == 'Windows'
         shell: pwsh

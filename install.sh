@@ -3,8 +3,8 @@
 # install.ps1). On Linux it adds an app menu entry; on macOS an app in
 # Applications, with the command linked to the binary inside it.
 #
-#   ./install.sh                for your user: ~/.local/bin (and ~/Applications)
-#   ./install.sh --system       for all users: /usr/local/bin (and /Applications), uses sudo
+#   ./install.sh                for your user, into ~/.local (and ~/Applications on macOS)
+#   ./install.sh --system       for all users, into /usr/local (and /Applications), uses sudo
 #   ./install.sh --uninstall    remove it again (add --system for a system install)
 set -eu
 
@@ -30,17 +30,15 @@ for arg in "$@"; do
 done
 
 bin="$prefix/bin/$name"
-if [ "$(uname -s)" = Darwin ]; then
-    app="$apps/$name.app"
-    installed="$bin and $app"
-else
-    desktop="$prefix/share/applications/$name.desktop"
-    installed="$bin and $desktop"
-fi
+app="$apps/$name.app"
+desktop="$prefix/share/applications/$name.desktop"
+macos=false
+[ "$(uname -s)" = Darwin ] && macos=true
+if $macos; then installed="$bin and $app"; else installed="$bin and $desktop"; fi
 
 if $uninstall; then
     $sudo rm -f "$bin"
-    if [ -n "${app:-}" ]; then $sudo rm -rf "$app"; else $sudo rm -f "$desktop"; fi
+    if $macos; then $sudo rm -rf "$app"; else $sudo rm -f "$desktop"; fi
     echo "Removed $installed"
     exit 0
 fi
@@ -55,7 +53,7 @@ put() {
     $sudo install -m "$3" "$1" "$2"
 }
 
-if [ -n "${app:-}" ]; then
+if $macos; then
     $sudo rm -rf "$app"
     put "$built" "$app/Contents/MacOS/$name" 755
     put assets/macos/Info.plist "$app/Contents/Info.plist" 644

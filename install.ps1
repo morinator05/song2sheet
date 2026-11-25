@@ -5,6 +5,7 @@
 #   powershell -ExecutionPolicy Bypass -File install.ps1 -Uninstall    remove it again
 param([switch]$Uninstall)
 
+$ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
 $name = 'song2sheet'
@@ -13,17 +14,22 @@ $exe = Join-Path $dir "$name.exe"
 $shortcut = Join-Path ([Environment]::GetFolderPath('Programs')) "$name.lnk"
 
 if ($Uninstall) {
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $dir, $shortcut
+    # Fails (instead of claiming success) if song2sheet is still running.
+    $dir, $shortcut | Where-Object { Test-Path -LiteralPath $_ } | Remove-Item -Recurse -Force
     "Removed $dir and $shortcut"
     exit
 }
 
+Get-Command cargo | Out-Null  # stops here with a clear error if Rust is missing
+# cargo reports its progress on stderr, which must not count as an error.
+$ErrorActionPreference = 'Continue'
 cargo build --release -p $name
+$ErrorActionPreference = 'Stop'
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { 'target' }
-New-Item -ItemType Directory -Force -ErrorAction Stop $dir | Out-Null
-Copy-Item -ErrorAction Stop (Join-Path $target "release\$name.exe") $exe
+New-Item -ItemType Directory -Force $dir | Out-Null
+Copy-Item (Join-Path $target "release\$name.exe") $exe
 
 $link = (New-Object -ComObject WScript.Shell).CreateShortcut($shortcut)
 $link.TargetPath = $exe
