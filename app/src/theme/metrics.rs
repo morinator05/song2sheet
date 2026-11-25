@@ -57,7 +57,7 @@ pub const SONG_PANEL_MIN_W: f32 = 290.0;
 pub const PREVIEW_PANEL_W: f32 = 540.0;
 pub const PREVIEW_PANEL_MIN_W: f32 = 360.0;
 
-/// The highlight over notation (cursor, selected bars): opacity of the
-/// accent fill and corner radius.
+/// The highlight under notation (cursor, selected bars): opacity of the
+/// accent fill (it also gets an accent outline) and corner radius.
 pub const NOTATION_HIGHLIGHT_ALPHA: f32 = 0.35;
 pub const NOTATION_HIGHLIGHT_RADIUS: f32 = 2.0;

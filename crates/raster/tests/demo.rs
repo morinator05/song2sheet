@@ -1,6 +1,11 @@
 //! Renders the demo fixture to PNG (target/test-output/) for visual checks.
 
 use model::{PartFilter, Project, StaffKind};
+use tiny_skia::{Color, Pixmap, PixmapPaint, Transform};
+
+/// Grey level of the card the app draws section views on (dark theme).
+const CARD_GREY: u8 = 48;
+const PX_PER_MM: f32 = 6.0;
 
 fn demo() -> Project {
     Project::from_json(include_str!("../../../tests/fixtures/demo.s2s.json")).unwrap()
@@ -16,7 +21,7 @@ fn render_demo_pages() {
         let list = engrave::layout_sheet(&p, filter);
         assert!(!list.pages.is_empty());
         for (i, page) in list.pages.iter().enumerate() {
-            let pixmap = raster::render(page, 6.0);
+            let pixmap = raster::render(page, PX_PER_MM);
             assert_eq!(pixmap.width(), 1260);
             pixmap.save_png(out.join(format!("demo-{name}-{}.png", i + 1))).unwrap();
         }
@@ -31,7 +36,7 @@ fn render_section_editor_view() {
     let verse = p.segments.iter().find(|s| s.name == "Verse").unwrap();
     let view = engrave::layout_segment(verse);
     assert!(!view.beats.is_empty());
-    raster::render(&view.page, 6.0).save_png(out.join("demo-section-verse.png")).unwrap();
+    on_card(&view.page).save_png(out.join("demo-section-verse.png")).unwrap();
 }
 
 #[test]
@@ -43,5 +48,15 @@ fn render_imported_musicxml() {
     let score = import::load(&fixture).unwrap();
     let seg = import::extract(&score, 0..4, &[0, 1, 2], "Imported");
     let view = engrave::layout_segment(&seg);
-    raster::render(&view.page, 6.0).save_png(out.join("import-groove.png")).unwrap();
+    on_card(&view.page).save_png(out.join("import-groove.png")).unwrap();
+}
+
+/// A section view as the app shows it: the ink (untinted, so white) on a
+/// dark card.
+fn on_card(page: &engrave::Page) -> Pixmap {
+    let ink = raster::render_ink(page, PX_PER_MM);
+    let mut card = Pixmap::new(ink.width(), ink.height()).unwrap();
+    card.fill(Color::from_rgba8(CARD_GREY, CARD_GREY, CARD_GREY, u8::MAX));
+    card.draw_pixmap(0, 0, ink.as_ref(), &PixmapPaint::default(), Transform::identity(), None);
+    card
 }

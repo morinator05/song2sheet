@@ -27,7 +27,7 @@ A Cargo workspace; dependency versions live in `[workspace.dependencies]`.
 - `crates/model`: data types and serde for the `.s2s.json` file. It has no UI or rendering dependencies.
   - `edit.rs` holds the editing operations (`set_duration`, `fit`, `rests`, `normalize`, `prune`). **Invariant: every voice fills its bar exactly.** Changes to beats go through `edit::*`; `edit::normalize` runs when a section is opened in the editor. Rest-only extra voices are `prune`d when saving.
 - `crates/engrave`: turns `Project` + `PartFilter` into a `DisplayList` of A4 pages. The pages hold primitives (lines, rects, text) in **mm, top-left origin, y down, with text placed at its baseline**.
-  - `layout/`: the page structure. `header`, `row` (left column, notation and comments) and pagination in `mod.rs`. `segment.rs`'s `layout_segment` engraves one section at the same notation width as on the sheet, for the editor.
+  - `layout/`: the page structure. `header`, `row` (left column, notation and comments) and pagination in `mod.rs`. `segment.rs`'s `layout_segment` engraves one section for the app's editor and import overview. It uses the same notation width as on the sheet, so the line breaks match, but `Spacing::SCREEN` puts more room between staves and systems. It leaves the staff names to the app (`staff_labels`) and reports each system's extent (`SystemSpan`).
   - `notation/`: the music. `systems` measures bars into shared onset `Columns` and packs them into systems (balanced, bars may shrink to `MIN_SCALE`). `staff` draws one staff of one system, `events` draws one beat, and `beams` adds beams, flags and tuplets. All sizes are in `metrics.rs`. `BeatBox`es record where each beat is drawn, for the editor.
   - `fonts::glyph_run` is the **only** way text is turned into glyphs. It uses plain advances with no shaping. Measuring, the raster preview and the PDF all go through it, which is what makes the preview match the printout.
 - `crates/import`: MusicXML (`.musicxml`/`.xml`/`.mxl`) → `Score` (one staff per part plus per-bar time signature and tempo).
@@ -36,7 +36,7 @@ A Cargo workspace; dependency versions live in `[workspace.dependencies]`.
   - Pitched notes without fret info become rhythm slashes; a song sheet shows rhythm, not melody.
   - Drums are mapped through `<midi-unpitched>` (General MIDI + 1), falling back to the staff position.
   - Chord symbols are collected by their position in the bar and attached to whichever staff of the part is kept. A part may have several staves; the tab staff wins.
-- `crates/raster`: draws a `Page` with `tiny-skia`. The app shows this image as its preview. Don't add a separate egui-native notation renderer.
+- `crates/raster`: draws a `Page` with `tiny-skia`. `render` draws on white paper (the preview). `render_ink` draws white ink on transparency, with knockouts erased, which the app tints to its text colour. Don't add a separate egui-native notation renderer.
 - `crates/pdf`: draws the `DisplayList` with `krilla`, via `draw_glyphs` and `glyph_run`, never `draw_text`.
 - `app/`: the `eframe`/`egui` binary. **UI rules are in `docs/DESIGN.md`; follow them.**
   - `theme/`: fonts (Noto Sans + Phosphor fallback icons), sizes (`metrics.rs`) and colours. `kde.rs` reads KDE's `kdeglobals` (light/dark + accent, re-read live). `icon_theme.rs` finds system theme icons (Breeze) and rasterizes them with `resvg`, coloured white for tinting. Screens take colours only from `theme::palette`.
@@ -46,7 +46,7 @@ A Cargo workspace; dependency versions live in `[workspace.dependencies]`.
     - `song_panel`: song details and the section pool.
     - `arranger`: sheet rows with drag-to-reorder.
     - `picker/`: imports a score, chooses parts and a bar range (overview drawn in chunks of up to 8 bars, split at time-signature changes) and creates a section.
-    - `notation_view`: a rendered section with a highlight (cursor or bars) and click hit-testing, shared by the editor and the picker.
+    - `notation_view`: a rendered section with a highlight (cursor or bars) and click hit-testing, shared by the editor and the picker. It is drawn onto the card: tinted ink, staff names in a gutter, hairlines between systems, and the highlight under the ink (rules in `docs/DESIGN.md`).
     - `editor/`: the section editor. `keys` is the **single source** of shortcuts; the legend and toolbar hints are generated from it. `commands` holds the pure edit commands, `cursor` the navigation, `header` the section settings and staves, and `toolbar` the buttons.
     - `widgets/`: shared constants and helpers, `buttons` (primary/secondary/ghost/danger/toggle, `combo`), `layout` (`header`, `card`, `caption`) and `icons`.
 

@@ -39,6 +39,8 @@ const SHADOW_ALPHA: u8 = 60;
 /// Semantic colours for the screens, so none hard-codes a colour.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Palette {
+    /// Normal text (also the ink of notation shown on a card).
+    pub text: Color32,
     pub accent: Color32,
     /// Text drawn on the accent colour.
     pub on_accent: Color32,
@@ -214,6 +216,7 @@ fn from_kde(ini: &Ini) -> (Theme, Visuals, Palette) {
     }
 
     let palette = Palette {
+        text,
         accent,
         on_accent,
         success: pick(VIEW, FOREGROUND_POSITIVE, fallback_palette(&v).success),
@@ -235,6 +238,7 @@ const FALLBACK_SUCCESS_LIGHT: Color32 = Color32::from_rgb(30, 130, 70);
 fn fallback_palette(v: &Visuals) -> Palette {
     let text = v.text_color();
     Palette {
+        text,
         accent: v.selection.bg_fill,
         on_accent: v.selection.stroke.color,
         success: if v.dark_mode { FALLBACK_SUCCESS_DARK } else { FALLBACK_SUCCESS_LIGHT },
