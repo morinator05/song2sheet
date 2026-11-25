@@ -2,7 +2,7 @@
 
 **Compact song sheets for bands.** One line per song section (intro, verse, chorus…), each with its tempo, a short bit of notation and a few comments, all on one or two A4 pages. Every player can print a version with only their own part.
 
-![The song2sheet app: sections on the left, the sheet in the middle, the print preview on the right](docs/images/app.png)
+![The song2sheet app: sections on the left, a section open in the editor in the middle, the print preview on the right](docs/images/app.png)
 
 ## Why song2sheet?
 

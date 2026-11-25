@@ -284,7 +284,10 @@ fn overview(ui: &mut egui::Ui, state: &mut PickerState) {
         state.overview.chunks.iter().find(|(c, _, _)| c.contains(&bar)).map(|(c, _, _)| c.start)
     });
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
-        for (chunk, seg, view) in &mut state.overview.chunks {
+        for (i, (chunk, seg, view)) in state.overview.chunks.iter_mut().enumerate() {
+            if i > 0 {
+                ui.separator();
+            }
             caption(ui, bar_range_label(&score.bars, chunk));
             let selected = state.selection.as_ref().map(|s| s.within(chunk)).unwrap_or_default();
             let top = ui.cursor().top();

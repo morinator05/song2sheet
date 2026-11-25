@@ -22,7 +22,7 @@ impl Preview {
 
     /// Shows all pages scaled to the available width.
     pub fn show(&mut self, ui: &mut egui::Ui, project: &Project, filter: PartFilter) {
-        let (width, px_width) = image_widths(ui);
+        let (width, px_width) = image_widths(ui, ui.available_width());
         let up_to_date = self
             .rendered
             .as_ref()

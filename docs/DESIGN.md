@@ -7,7 +7,13 @@ These rules keep the app consistent. The code for them lives in `app/src/theme/`
 There are three fixed areas: **Sections** on the left, the **centre screen** in the middle (Sheet, Section editor or Import) and the **Preview** on the right. A slim top bar holds the file actions, undo/redo, the screen tabs and Shortcuts. A bottom status line shows the result of the last action.
 
 - Each area starts with a `header`: a bold title, with that area's actions aligned right. The actions keep their size; a title too long for the rest is cut with "…", and the full title is in its tooltip. Captions (counts, file names) go on their own line under the header, never inside it.
-- Group related controls in a `card` (a lifted background with a hairline border and radius 8). Notation (the editor's section, the import overview) sits in a card too. Repeated compact rows (Sections) use cards with the `ROW_CARD_MARGIN`.
+- Group related controls in a `card` (a lifted background with a hairline border and radius 8). Repeated compact rows (Sections) use cards with the `ROW_CARD_MARGIN`.
+- Notation on a screen (the editor's section, the import overview) sits in a card too, drawn straight onto it (`NotationView`):
+  - the ink is in the text colour, with no paper behind it;
+  - with several staves, their names stand in a gutter on the left, in the weak colour (the editor cursor's staff in the text colour);
+  - staves have more room between them than on paper, but the line breaks are the printout's;
+  - a hairline separates systems;
+  - the cursor or bar selection is an accent tint with an accent outline under the ink. A bar selection is one column across all staves of a system.
 - The preview shows pages as white paper with a soft shadow.
 - Panels have a smallest width (`SONG_PANEL_MIN_W`, `PREVIEW_PANEL_MIN_W`) at which their header actions still fit.
 - Separate groups inside one card with a separator; separate cards and blocks with the 16-point gap.

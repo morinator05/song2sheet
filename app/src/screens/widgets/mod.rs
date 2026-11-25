@@ -44,10 +44,10 @@ const RENDER_WIDTH_STEP_PX: f32 = 100.0;
 /// Smallest width (points) a rendered image is shown at.
 const MIN_IMAGE_W: f32 = 100.0;
 
-/// Width (points) to show a rendered image at, and the pixel width to
-/// render it with.
-pub fn image_widths(ui: &egui::Ui) -> (f32, f32) {
-    let width = ui.available_width().max(MIN_IMAGE_W);
+/// Width (points) to show a rendered image at when `available` points are
+/// free, and the pixel width to render it with.
+pub fn image_widths(ui: &egui::Ui, available: f32) -> (f32, f32) {
+    let width = available.max(MIN_IMAGE_W);
     let px = (width * ui.pixels_per_point() / RENDER_WIDTH_STEP_PX).ceil() * RENDER_WIDTH_STEP_PX;
     (width, px)
 }
